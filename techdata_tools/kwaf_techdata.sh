@@ -25,7 +25,8 @@ CMDS_WITHOUT_ARGS=( 'whoami'
                     'helm version'
                     'kubectl config get-contexts'
                     'kubectl get crd'
-                    'kubectl get validatingwebhookconfigurations')
+                    'kubectl get validatingwebhookconfigurations'
+                    'helm ls -A')
 
 HELM_CMDS_REQUIRE_NS_AND_RELEASE=('helm get values -n %s %s'
                                   'helm get manifests -n %s %s')
