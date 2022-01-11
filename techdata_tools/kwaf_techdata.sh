@@ -18,18 +18,22 @@ function print_help {
   printf '\t -r, --releasename \t\t The Helm release name with which KWAF was installed. default: %s\n' "$DEFAULT_HELM_RELEASE_NAME"
 }
 
-CMDS_WITHOUT_ARGS=('kubectl version'
-                  'helm version'
-                  'kubectl get crd'
-                  'kubectl get validatingwebhookconfigurations')
+CMDS_WITHOUT_ARGS=( 'whoami'
+                    'command -v kubectl'
+                    'command -v helm'
+                    'kubectl version'
+                    'helm version'
+                    'kubectl config get-contexts'
+                    'kubectl get crd'
+                    'kubectl get validatingwebhookconfigurations')
 
 HELM_CMDS_REQUIRE_NS_AND_RELEASE=('helm get values -n %s %s'
                                   'helm get manifests -n %s %s')
 
-KUBECTL_CMDS_REQUIRE_NS=('kubectl get deployments -n %s'
-                        'kubectl get statefulsets -n %s'
-                        'kubectl get -n %s secret'
-                        'kubectl get -n %s cm')
+KUBECTL_CMDS_REQUIRE_NS=( 'kubectl get deployments -n %s'
+                          'kubectl get statefulsets -n %s'
+                          'kubectl get -n %s secret'
+                          'kubectl get -n %s cm')
 
 
 
@@ -70,7 +74,7 @@ printf "HELM_RELEASE_NAME = %s\n" "$HELM_RELEASE_NAME"
 ## Execute all the cmds that don't require any args:
 for str in "${CMDS_WITHOUT_ARGS[@]}"; do
   print_delimiter
-  printf '%d) executing %s:\n\n' "$CTR" "$str"
+  printf '%d) Executing %s:\n\n' "$CTR" "$str"
   #exec:
   eval "$str"
   ((CTR=CTR+1))
@@ -81,7 +85,7 @@ for str in "${HELM_CMDS_REQUIRE_NS_AND_RELEASE[@]}"; do
   cmd_to_exec=$(printf "$str" "$NAMESPACE" "$HELM_RELEASE_NAME") ##create the command dynamically
   str=$cmd_to_exec
   print_delimiter
-  printf '%d) executing %s:\n\n' "$CTR" "$str"
+  printf '%d) Executing %s:\n\n' "$CTR" "$str"
   #exec:
   eval "$str"
   ((CTR=CTR+1))
@@ -92,7 +96,7 @@ for str in "${KUBECTL_CMDS_REQUIRE_NS[@]}"; do
   cmd_to_exec=$(printf "$str" "$NAMESPACE") ##create the command dynamically
   str=$cmd_to_exec
   print_delimiter
-  printf '%d) executing %s:\n\n' "$CTR" "$str"
+  printf '%d) Executing %s:\n\n' "$CTR" "$str"
   #exec:
   eval "$str"
   ((CTR=CTR+1))
