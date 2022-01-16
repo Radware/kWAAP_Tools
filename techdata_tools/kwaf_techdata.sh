@@ -17,7 +17,11 @@ function print_help {
   printf '\t -n, --namespace \t\t The Namespace in which KWAF is installed. default: %s\n' "$DEFAULT_NAMESPACE"
   printf '\t -r, --releasename \t\t The Helm release name with which KWAF was installed. default: %s\n' "$DEFAULT_HELM_RELEASE_NAME"
 }
-
+## Defining the list of commands to run.
+## Generally, it makes sense to create the commands with placeholders for common arguments (like NS) and later do a search-and-replace logic to swap
+## the placeholders with the incoming args. Feel free to rise to the challenge and make sure it's independent of any external tools that might no be installed
+## on the client's machine.
+## ******************==> Add your new commands here:
 CMDS_WITHOUT_ARGS=( 'whoami'
                     'command -v kubectl'
                     'command -v helm'
@@ -36,8 +40,7 @@ KUBECTL_CMDS_REQUIRE_NS=( 'kubectl get deployments -n %s'
                           'kubectl get -n %s secret'
                           'kubectl get -n %s cm')
 
-
-
+## End of the list of commands
 
 ## Functionality starts here:
 
