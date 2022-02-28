@@ -11,13 +11,13 @@ usage() {
   echo "Backup:"
   echo "    $(basename "$0") --backup"
   echo "Restore:"
-  echo "    $(basename "$0") -r -i waas_backup.tgz"
+  echo "    $(basename "$0") -r -n waas_backup.tgz"
   echo '''
 Options:
     -h|--help               Print usage
     -b|--backup             Generate backup archive
     -r|--restore            Perform restore operation, use [-i or --input] to provide input archive 
-    -i|--input              Change default input filename
+    -n|--name               Change default input\output filename
   '''
 }
 
@@ -32,7 +32,7 @@ POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "${END_OF_OPT}${1}" in
     -h|--help)      usage; exit 0 ;;
-    -i|--input)     shift;BACKUP_TAR="$1";;
+    -n|--name)      shift;BACKUP_TAR="$1";;
     -b|--backup)    BACKUP=1;;
     -r|--restore)   RESTORE=1;;
     --)             END_OF_OPT=1 ;;
@@ -150,15 +150,29 @@ function recover_backup {
 }
 
 if [[ ! -z $RESTORE ]]; then
+    #Make sure input file was provided
     if [[ -z $BACKUP_TAR ]]; then
         echo "[ERROR] no backup archive provided!"
         echo "use [-i or --input] to provide input archive"
         exit 2
     fi
+    #Run recover function 
     recover_backup
 fi
+
 if [[ ! -z $BACKUP ]]; then
+    #Run Backup functions
     cm_backup
     crd_backup
-    tar -czvf "waas_backup_$(date "+%d-%m-%y").tgz" *.yml
+
+    #In case filename was provided use it, otherwise set default output filename
+    if [[ -z $BACKUP_TAR ]]; then
+        BACKUP_TAR="waas_backup_$(date "+%d-%m-%y").tgz"
+    fi
+
+    #Archive all backup YAML files 
+    tar -czf $BACKUP_TAR *.yml
+    if [ $? -eq 0 ]; then
+        echo "Backup completed successfully, result filename is $BACKUP_TAR"
+    fi
 fi
