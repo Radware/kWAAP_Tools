@@ -1,6 +1,5 @@
 #! /bin/bash
 
-
 # Help\Usage message
 usage() {
   echo '''
@@ -69,7 +68,7 @@ function cm_backup {
             NS=${CM#*;;}
             
             #Get full configmap definition 
-            OBJ=$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o json) 
+            OBJ="$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o json)"
         
             #Check if CRD has "status" field
             LAST_CONFIG=$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}')
@@ -80,7 +79,7 @@ function cm_backup {
             fi
         
             #Remove fields based on the parameter value above
-            cm_backup_data+=$(echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)
+            cm_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
 
             #Add delimiter to output file
             cm_backup_data+="\\n---\\n"
@@ -105,7 +104,7 @@ function crd_backup {
             NS=${CRD#*;;}
             
             #Get full CRD definition 
-            OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
+            OBJ="$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)"
             
             #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io\last-applied-configuration" fields
             STATUS=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.status}')
@@ -121,7 +120,7 @@ function crd_backup {
                 #In case last-applied-configuration annotation is found - add it to removal
                 TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\"}"
             fi
-            crd_backup_data+=$(echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)
+            crd_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
             
             #Add delimiter to output file
             crd_backup_data+="\\n---\\n"
@@ -140,7 +139,8 @@ function recover_backup {
 	FILES=($(ls $EXTRACT_DIR))
 	for backup_file in "${FILES[@]}"
 	do
-		TMP_ERROR=$(kubectl apply -f $EXTRACT_DIR/$backup_file 2>&1 > /dev/null)
+		#Get stderr from aplly, while ignoring any line containing "patched automatically" message
+		TMP_ERROR=$(kubectl apply -f $EXTRACT_DIR/$backup_file 2>&1 > /dev/null | sed "/patched automatically/d")
 		if [[ $TMP_ERROR != "" ]];
 		then
 			ERRORS+=("$backup_file failed to apply: $TMP_ERROR")
