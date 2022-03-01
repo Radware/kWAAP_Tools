@@ -106,7 +106,6 @@ function crd_backup {
             
             #Get full CRD definition 
             OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
-            OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
             
             #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io\last-applied-configuration" fields
             STATUS=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.status}')
