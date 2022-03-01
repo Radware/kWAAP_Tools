@@ -140,7 +140,8 @@ function recover_backup {
 	FILES=($(ls $EXTRACT_DIR))
 	for backup_file in "${FILES[@]}"
 	do
-		TMP_ERROR=$(kubectl apply -f $EXTRACT_DIR/$backup_file 2>&1 > /dev/null)
+		#Get stderr from aplly, while ignoring any line containing "patched automatically" message
+		TMP_ERROR=$(kubectl apply -f $EXTRACT_DIR/$backup_file 2>&1 > /dev/null | sed "/patched automatically/d")
 		if [[ $TMP_ERROR != "" ]];
 		then
 			ERRORS+=("$backup_file failed to apply: $TMP_ERROR")
