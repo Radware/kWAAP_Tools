@@ -59,7 +59,7 @@ PATCH_STRING="{\"op\": \"remove\", \"path\": \"/metadata/uid\"}, \
 
 #Make sure ConfigMap output file is empty
 function cm_backup {
-    echo "" > "cm_backup.yml"
+    cm_backup_data=""
     for CM_NAME in "${CONFIG_MAPS_NAMES[@]}"; do
         for CM in $(kubectl get cm --all-namespaces --ignore-not-found --field-selector metadata.name=$CM_NAME -o jsonpath='{range .items[*]}{@.metadata.name}{";;"}{@.metadata.namespace}{"\n"}{end}'); do
             #Extract CRD name - the string up to ";;"
@@ -80,18 +80,22 @@ function cm_backup {
             fi
         
             #Remove fields based on the parameter value above
-            echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml >> "cm_backup.yml"
+            cm_backup_data+=$(echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)
 
             #Add delimiter to output file
-            echo "---" >> "cm_backup.yml"
+            cm_backup_data+="\\n---\\n"
         done
     done
+    # in case configmaps were collected write to file
+    if [[ ! -z $cm_backup_data ]]; then
+        echo -e "$cm_backup_data" > cm_backup.yml
+        CLEANUP_LIST+=('cm_backup.yml')
+    fi
 }
 
 function crd_backup {
     for CRD_TYPE in "${CRD_TYPES[@]}"; do
-        #Make sure CRD output file is empty
-        echo "" > "${CRD_TYPE}_backup.yml"
+        crd_backup_data=""
         #get all CRD names and namespaces, delimited by ";;"
         for CRD in $(kubectl get $CRD_TYPE --all-namespaces --ignore-not-found -o jsonpath='{range .items[*]}{@.metadata.name}{";;"}{@.metadata.namespace}{"\n"}{end}'); do
             #Extract CRD name - the string up to ";;"
@@ -104,9 +108,10 @@ function crd_backup {
             OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
             OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
             
-            #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration" fields
+            #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io\last-applied-configuration" fields
             STATUS=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.status}')
-            LAST_APPLIED_ANNO=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io~1last-applied-configuration}')
+            LAST_APPLIED_ANNO=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}')
+
             TMP_PATCH_STRING=$PATCH_STRING
             
             if [[ ! -z $STATUS ]]; then
@@ -117,11 +122,15 @@ function crd_backup {
                 #In case last-applied-configuration annotation is found - add it to removal
                 TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\"}"
             fi
-            echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml >> "${CRD_TYPE}_backup.yml"
+            crd_backup_data+=$(echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)
             
             #Add delimiter to output file
-            echo "---" >> "${CRD_TYPE}_backup.yml"
+            crd_backup_data+="\\n---\\n"
         done
+        if [[ ! -z $crd_backup_data ]]; then
+            echo -e "$crd_backup_data" > "${CRD_TYPE}_backup.yml"
+            CLEANUP_LIST+=("${CRD_TYPE}_backup.yml")
+        fi
     done
 }
 
@@ -161,7 +170,7 @@ if [[ ! -z $RESTORE ]]; then
     #Make sure input file was provided
     if [[ -z $BACKUP_TAR ]]; then
         echo "[ERROR] no backup archive provided!"
-        echo "use [-i or --input] to provide input archive"
+        echo "use [-n or --name] to provide input archive"
         exit 2
     fi
     #Run recover function 
@@ -170,6 +179,7 @@ fi
 
 if [[ ! -z $BACKUP ]]; then
     #Run Backup functions
+    CLEANUP_LIST=()
     cm_backup
     crd_backup
 
@@ -180,7 +190,14 @@ if [[ ! -z $BACKUP ]]; then
 
     #Archive all backup YAML files 
     tar -czf $BACKUP_TAR *.yml
+
+    #If archive was successful - print output filename and cleanup
     if [ $? -eq 0 ]; then
-        echo "Backup completed successfully, result filename is $BACKUP_TAR"
+        echo "Backup completed successfully, result filename is $@$BACKUP_TAR"
+	    for backup_file in "${CLEANUP_LIST[@]}"; do
+            if [[ "$backup_file" == *\.yml ]]; then
+                rm $backup_file
+            fi
+        done
     fi
 fi
