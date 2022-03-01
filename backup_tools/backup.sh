@@ -160,7 +160,7 @@ if [[ ! -z $RESTORE ]]; then
     #Make sure input file was provided
     if [[ -z $BACKUP_TAR ]]; then
         echo "[ERROR] no backup archive provided!"
-        echo "use [-i or --input] to provide input archive"
+        echo "use [-n or --name] to provide input archive"
         exit 2
     fi
     #Run recover function 
