@@ -52,7 +52,7 @@ CONFIG_MAPS_NAMES=('waas-activity-tracker-config' 'waas-ca-config' 'waas-custom-
 
 #Kubectl patch parameters for removing fields
 PATCH_STRING="{\"op\": \"remove\", \"path\": \"/metadata/uid\"}, \
-{\"op\": \"remove\", \"path\": \"/metadata/resourceVersion\"}, \
+{\"op\": \"replace\", \"path\": \"/metadata/resourceVersion\", \"value\": \"\"}, \
 {\"op\": \"remove\", \"path\": \"/metadata/selfLink\"}, \
 {\"op\": \"remove\", \"path\": \"/metadata/creationTimestamp\"}"
 
@@ -75,7 +75,7 @@ function cm_backup {
             TMP_PATCH_STRING=$PATCH_STRING
             if [[ ! -z $LAST_CONFIG ]]; then
                 #In case last-applied-configuration annotation is found - add it to removal
-                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\"}"
+                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"replace\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\", \"value\": \"\"}"
             fi
         
             #Remove fields based on the parameter value above
@@ -118,7 +118,7 @@ function crd_backup {
             fi
             if [[ ! -z $LAST_APPLIED_ANNO ]]; then
                 #In case last-applied-configuration annotation is found - add it to removal
-                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\"}"
+                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"replace\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\", \"value\": \"\"}"
             fi
             crd_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
             
