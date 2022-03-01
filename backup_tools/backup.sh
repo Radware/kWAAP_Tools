@@ -192,11 +192,9 @@ if [[ ! -z $BACKUP ]]; then
 
     #If archive was successful - print output filename and cleanup
     if [ $? -eq 0 ]; then
-        echo "Backup completed successfully, result filename is $@$BACKUP_TAR"
+        echo "Backup completed successfully, result filename is $BACKUP_TAR"
 	    for backup_file in "${CLEANUP_LIST[@]}"; do
-            if [[ "$backup_file" == *\.yml ]]; then
-                rm $backup_file
-            fi
+            rm $backup_file
         done
     fi
 fi
