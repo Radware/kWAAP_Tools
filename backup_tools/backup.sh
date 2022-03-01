@@ -60,23 +60,31 @@ PATCH_STRING="{\"op\": \"remove\", \"path\": \"/metadata/uid\"}, \
 #Make sure ConfigMap output file is empty
 function cm_backup {
     echo "" > "cm_backup.yml"
-    for CM in "${CONFIG_MAPS_NAMES[@]}"; do
-        #Get full configmap definition 
-        OBJ=$(kubectl get cm --ignore-not-found --all-namespaces --field-selector metadata.name=$CM -o jsonpath='{.items[]}') 
+    for CM_NAME in "${CONFIG_MAPS_NAMES[@]}"; do
+        for CM in $(kubectl get cm --all-namespaces --ignore-not-found --field-selector metadata.name=$CM_NAME -o jsonpath='{range .items[*]}{@.metadata.name}{";;"}{@.metadata.namespace}{"\n"}{end}'); do
+            #Extract CRD name - the string up to ";;"
+            NAME=${CM%;;*}
+            
+            #Extract CRD name - the string after ";;"
+            NS=${CM#*;;}
+            
+            #Get full configmap definition 
+            OBJ=$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o json) 
         
-        #Check if CRD has "metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration" field
-        LAST_APPLIED_ANNO=$(kubectl get cm --ignore-not-found --all-namespaces --field-selector metadata.name=$CM -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io~1last-applied-configuration}')
-        TMP_PATCH_STRING=$PATCH_STRING
-        if [[ ! -z $LAST_APPLIED_ANNO ]]; then
-            #In case last-applied-configuration annotation is found - add it to removal
-            TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\"}"
-        fi
+            #Check if CRD has "status" field
+            LAST_CONFIG=$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}')
+            TMP_PATCH_STRING=$PATCH_STRING
+            if [[ ! -z $LAST_CONFIG ]]; then
+                #In case last-applied-configuration annotation is found - add it to removal
+                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\"}"
+            fi
         
-        #Remove fields based on the parameter value above
-        echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml >> "cm_backup.yml"
+            #Remove fields based on the parameter value above
+            echo $OBJ | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml >> "cm_backup.yml"
 
-        #Add delimiter to output file
-        echo "---" >> "cm_backup.yml"
+            #Add delimiter to output file
+            echo "---" >> "cm_backup.yml"
+        done
     done
 }
 
