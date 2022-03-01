@@ -102,11 +102,10 @@ function crd_backup {
             
             #Get full CRD definition 
             OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
-            OBJ=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)
             
-            #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration" fields
+            #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io/last-applied-configuration" fields
             STATUS=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.status}')
-            LAST_APPLIED_ANNO=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io~1last-applied-configuration}')
+            LAST_APPLIED_ANNO=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}')
             TMP_PATCH_STRING=$PATCH_STRING
             
             if [[ ! -z $STATUS ]]; then
