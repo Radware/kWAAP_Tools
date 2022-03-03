@@ -41,6 +41,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 EXTRACT_DIR="tmp_restore_dir"
+AWK_DIR="tmp_awk_dir"
 ERRORS=()
 TMP_ERROR=""
 
@@ -52,7 +53,7 @@ CONFIG_MAPS_NAMES=('waas-activity-tracker-config' 'waas-ca-config' 'waas-custom-
 
 #Kubectl patch parameters for removing fields
 PATCH_STRING="{\"op\": \"remove\", \"path\": \"/metadata/uid\"}, \
-{\"op\": \"replace\", \"path\": \"/metadata/resourceVersion\", \"value\": \"\"}, \
+{\"op\": \"remove\", \"path\": \"/metadata/resourceVersion\"}, \
 {\"op\": \"remove\", \"path\": \"/metadata/selfLink\"}, \
 {\"op\": \"remove\", \"path\": \"/metadata/creationTimestamp\"}"
 
@@ -137,17 +138,80 @@ function recover_backup {
 	tar -xzf $BACKUP_TAR -C $EXTRACT_DIR
 
 	FILES=($(ls $EXTRACT_DIR))
+	mkdir ./$EXTRACT_DIR/$AWK_DIR
 	for backup_file in "${FILES[@]}"
 	do
-		#Get stderr from aplly, while ignoring any line containing "patched automatically" message
-		TMP_ERROR=$(kubectl apply -f $EXTRACT_DIR/$backup_file 2>&1 > /dev/null | sed "/patched automatically/d")
-		if [[ $TMP_ERROR != "" ]];
-		then
-			ERRORS+=("$backup_file failed to apply: $TMP_ERROR")
-			TMP_ERROR=""
-		else
-			echo "$backup_file applied successfully"
-		fi
+		BACKUP_KIND=$(echo $backup_file | grep -Po '.+(?=_backup\.yml)')
+		cd $EXTRACT_DIR/$AWK_DIR
+		awk '{print $0 > "file" NR ".yml"}' RS="\n---\n" ../$backup_file
+		cd ../..
+		TYPE_FILES=($(ls $EXTRACT_DIR/$AWK_DIR))
+		for file in "${TYPE_FILES[@]}"
+		do
+			FILE_PATH=$EXTRACT_DIR/$AWK_DIR/$file
+			if [[ -z $FILE_PATH ]] || [[ $(cat $FILE_PATH) == "" ]]; then
+				rm $FILE_PATH
+				continue
+			fi
+
+			BACKUP_NAME=$(sed -n "/^metadata:$/ {
+					:loop
+					n
+					/^ */! {
+						b break
+					}
+					/^ *name:/ {
+						P
+						b break
+					}
+					b loop
+					:break
+				}" $FILE_PATH | grep -Po "name: \K.*")
+
+			BACKUP_NS=$(sed -n "/^metadata:$/ {
+					:loop
+					n
+					/^ */! {
+						b break
+					}
+					/^ *namespace:/ {
+						P
+						b break
+					}
+					b loop
+					:break
+				}" $FILE_PATH | grep -Po "namespace: \K.*")
+
+			RESOURCE_VERSION=$(kubectl get $BACKUP_KIND --ignore-not-found --namespace $BACKUP_NS $BACKUP_NAME -o jsonpath='{.metadata.resourceVersion}')
+
+			if [[ -n $RESOURCE_VERSION ]]; then
+				sed -i "/^metadata:$/ {
+					:loop
+					n
+					/^ */! {
+						b break
+					}
+					/^ *namespace:/ {
+						a \ \ resourceVersion: \"$RESOURCE_VERSION\"
+						b break
+					}
+					b loop
+					:break	
+				}" $FILE_PATH
+			fi
+
+			#Get stderr from aplly, while ignoring any line containing "patched automatically" message
+			TMP_ERROR=$(kubectl apply -f $FILE_PATH 2>&1 > /dev/null | sed "/patched automatically/d")
+			if [[ $TMP_ERROR != "" ]];
+			then
+				ERRORS+=("$BACKUP_NAME in namespace $BACKUP_NS type $BACKUP_KIND failed to apply: $TMP_ERROR")
+				TMP_ERROR=""
+			else
+				echo "$BACKUP_NAME in namespace $BACKUP_NS type $BACKUP_KIND applied successfully"
+			fi
+
+			rm $FILE_PATH
+		done
 	done
 
 	rm -rf $EXTRACT_DIR
