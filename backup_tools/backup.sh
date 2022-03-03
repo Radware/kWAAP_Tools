@@ -139,21 +139,33 @@ function recover_backup {
 
 	FILES=($(ls $EXTRACT_DIR))
 	mkdir ./$EXTRACT_DIR/$AWK_DIR
+
+	#Iterate over the backup files
 	for backup_file in "${FILES[@]}"
 	do
+		#Get the kind of resource from the backup file
 		BACKUP_KIND=$(echo $backup_file | grep -Po '.+(?=_backup\.yml)')
+
+		#Split the backup file into a number of files each containing a single resource - split by the delimiter \n---\n
+		#Created files are name file1.yml, file2.yml ...
 		cd $EXTRACT_DIR/$AWK_DIR
 		awk '{print $0 > "file" NR ".yml"}' RS="\n---\n" ../$backup_file
 		cd ../..
+
+		#Iterate over the single resource files of the same type
 		TYPE_FILES=($(ls $EXTRACT_DIR/$AWK_DIR))
 		for file in "${TYPE_FILES[@]}"
 		do
 			FILE_PATH=$EXTRACT_DIR/$AWK_DIR/$file
+
+			#The last file created by the awk command will be empty beacause the original backup files all end with the delimiter \n---\n
+			#So we want to delete it and move on - there is nothing to config here
 			if [[ -z $FILE_PATH ]] || [[ $(cat $FILE_PATH) == "" ]]; then
 				rm $FILE_PATH
 				continue
 			fi
 
+			#Get the resource name from the backup
 			BACKUP_NAME=$(sed -n "/^metadata:$/ {
 					:loop
 					n
@@ -168,6 +180,7 @@ function recover_backup {
 					:break
 				}" $FILE_PATH | grep -Po "name: \K.*")
 
+			#Get the resource namespace from the backup
 			BACKUP_NS=$(sed -n "/^metadata:$/ {
 					:loop
 					n
@@ -182,8 +195,10 @@ function recover_backup {
 					:break
 				}" $FILE_PATH | grep -Po "namespace: \K.*")
 
+			#If such a resource already exist - get the resource version
 			RESOURCE_VERSION=$(kubectl get $BACKUP_KIND --ignore-not-found --namespace $BACKUP_NS $BACKUP_NAME -o jsonpath='{.metadata.resourceVersion}')
 
+			#If the element exists - add the current resource version to the backup yml so the apply will pass
 			if [[ -n $RESOURCE_VERSION ]]; then
 				sed -i "/^metadata:$/ {
 					:loop
@@ -200,7 +215,7 @@ function recover_backup {
 				}" $FILE_PATH
 			fi
 
-			#Get stderr from aplly, while ignoring any line containing "patched automatically" message
+			#Get stderr from apply, while ignoring any line containing "patched automatically" message
 			TMP_ERROR=$(kubectl apply -f $FILE_PATH 2>&1 > /dev/null | sed "/patched automatically/d")
 			if [[ $TMP_ERROR != "" ]];
 			then
