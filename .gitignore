@@ -1,0 +1,4 @@
+*_test.sh
+backup_tools/*.yml
+backup_tools/*.tgz
+backup_tools/*.log
