@@ -196,27 +196,16 @@ function recover_backup {
 				}" $FILE_PATH | grep -Po "namespace: \K.*")
 
 			#If such a resource already exist - get the resource version
-			RESOURCE_VERSION=$(kubectl get $BACKUP_KIND --ignore-not-found --namespace $BACKUP_NS $BACKUP_NAME -o jsonpath='{.metadata.resourceVersion}')
+			RESOURCE=$(kubectl get $BACKUP_KIND --ignore-not-found --namespace $BACKUP_NS $BACKUP_NAME --no-headers)
 
 			#If the element exists - add the current resource version to the backup yml so the apply will pass
-			if [[ -n $RESOURCE_VERSION ]]; then
-				sed -i "/^metadata:$/ {
-					:loop
-					n
-					/^ */! {
-						b break
-					}
-					/^ *namespace:/ {
-						a \ \ resourceVersion: \"$RESOURCE_VERSION\"
-						b break
-					}
-					b loop
-					:break	
-				}" $FILE_PATH
-			fi
+			if [[ -n $RESOURCE ]]; then
+			    TMP_ERROR=$(kubectl replace  -f $FILE_PATH 2>&1 > /dev/null | sed "/patched automatically/d")
+			else
+                #Get stderr from apply, while ignoring any line containing "patched automatically" message
+                TMP_ERROR=$(kubectl apply  -f $FILE_PATH 2>&1 > /dev/null | sed "/patched automatically/d")
+            fi
 
-			#Get stderr from apply, while ignoring any line containing "patched automatically" message
-			TMP_ERROR=$(kubectl apply -f $FILE_PATH 2>&1 > /dev/null | sed "/patched automatically/d")
 			if [[ $TMP_ERROR != "" ]];
 			then
 				ERRORS+=("$BACKUP_NAME in namespace $BACKUP_NS type $BACKUP_KIND failed to apply: $TMP_ERROR")
