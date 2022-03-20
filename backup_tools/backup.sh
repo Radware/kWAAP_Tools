@@ -4,6 +4,7 @@
 usage() {
   echo '''
   This script will backup or restore waas configuration objects
+  Tested version <= 1.8
   '''
   echo "Usage:"
   echo "    $(basename "$0") [options]"
@@ -52,10 +53,8 @@ CRD_TYPES=('apispecs' 'decodingbehaviors' 'mappings' 'openapis' 'profiles' 'segm
 CONFIG_MAPS_NAMES=('waas-activity-tracker-config' 'waas-ca-config' 'waas-custom-rules-configmap' 'waas-elasticsearch-ilm-options-config' 'waas-elasticsearch-jvm-options-config' 'waas-identity-auth-config' 'waas-licenses-configmap' 'waas-logstash-jvm-options-config' 'waas-logstash-pipeline-config' 'waas-logstash-templates-config' 'waas-prometheus-config' 'waas-redis-init-config' 'waas-request-data-configmap')
 
 #Kubectl patch parameters for removing fields
-PATCH_STRING="{\"op\": \"remove\", \"path\": \"/metadata/uid\"}, \
-{\"op\": \"remove\", \"path\": \"/metadata/resourceVersion\"}, \
-{\"op\": \"remove\", \"path\": \"/metadata/selfLink\"}, \
-{\"op\": \"remove\", \"path\": \"/metadata/creationTimestamp\"}"
+PATCH_STRING=('{"op": "remove", "path": "/metadata/uid"}' '{"op": "remove", "path": "/metadata/resourceVersion"}' '{"op": "remove", "path": "/metadata/selfLink"}' '{"op": "remove", "path": "/metadata/creationTimestamp"}' '{"op": "replace", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration", "value": ""}' '{"op": "remove", "path": "/status"}')
+PATCH_FIELD=('.metadata.uid' '.metadata.resourceVersion' '.metadata.selfLink' '.metadata.creationTimestamp' '.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration' '.status')
 
 #Make sure ConfigMap output file is empty
 function cm_backup {
@@ -71,14 +70,16 @@ function cm_backup {
             #Get full configmap definition 
             OBJ="$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o json)"
         
-            #Check if CRD has "status" field
-            LAST_CONFIG=$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}')
-            TMP_PATCH_STRING=$PATCH_STRING
-            if [[ ! -z $LAST_CONFIG ]]; then
-                #In case last-applied-configuration annotation is found - add it to removal
-                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"replace\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\", \"value\": \"\"}"
-            fi
-        
+            #Remove fields
+            TMP_PATCH_STRING=""
+            for (( i=0; i<${#PATCH_FIELD[@]}; i++)); do
+                LAST_CONFIG=$(kubectl get cm --ignore-not-found --namespace $NS $NAME -o jsonpath={${PATCH_FIELD[$i]}})
+                if [[ ! -z $LAST_CONFIG ]]; then TMP_PATCH_STRING+="${PATCH_STRING[$i]}"; fi
+            done
+
+            #Seprate patch fields with comma
+            TMP_PATCH_STRING=${TMP_PATCH_STRING//\}\{/\}, \{}
+
             #Remove fields based on the parameter value above
             cm_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
 
@@ -107,20 +108,15 @@ function crd_backup {
             #Get full CRD definition 
             OBJ="$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o json)"
             
-            #Check if CRD has "status" or "metadata/annotations/kubectl.kubernetes.io\last-applied-configuration" fields
-            STATUS=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.status}')
-            LAST_APPLIED_ANNO=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}')
-
-            TMP_PATCH_STRING=$PATCH_STRING
+            TMP_PATCH_STRING=""
+            for (( i=0; i<${#PATCH_FIELD[@]}; i++)); do
+                LAST_CONFIG=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath={${PATCH_FIELD[$i]}})
+                if [[ ! -z $LAST_CONFIG ]]; then TMP_PATCH_STRING+="${PATCH_STRING[$i]}"; fi
+            done
             
-            if [[ ! -z $STATUS ]]; then
-                #In case status field found - add removal of "status" field
-                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"remove\", \"path\": \"/status\"}"
-            fi
-            if [[ ! -z $LAST_APPLIED_ANNO ]]; then
-                #In case last-applied-configuration annotation is found - add it to removal
-                TMP_PATCH_STRING="$TMP_PATCH_STRING, {\"op\": \"replace\", \"path\": \"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration\", \"value\": \"\"}"
-            fi
+            #Seprate patch fields with comma
+            TMP_PATCH_STRING=${TMP_PATCH_STRING//\}\{/\}, \{}
+
             crd_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
             
             #Add delimiter to output file
@@ -132,7 +128,8 @@ function crd_backup {
         fi
     done
 }
-
+##TODO: 
+## check namespace exists, create if not?
 function recover_backup {
 	mkdir ./$EXTRACT_DIR
 	tar -xzf $BACKUP_TAR -C $EXTRACT_DIR
