@@ -46,15 +46,16 @@ AWK_DIR="tmp_awk_dir"
 ERRORS=()
 TMP_ERROR=""
 
-#List of CRDs to backup
-CRD_TYPES=('apispecs' 'decodingbehaviors' 'mappings' 'openapis' 'profiles' 'segments' 'sourcegroups' 'unblockrequests')
-
+#Get List of CRDs to backup (based on "waas.radware.com" group)
+CRD_TYPES=$(kubectl get crd -o jsonpath='{.items[?(@.spec.group=="waas.radware.com")].metadata.name}')
+#Convert CRD_TYPES to array
+CRD_TYPES=($CRD_TYPES)
 #List of ConfigMaps to backup
 CONFIG_MAPS_NAMES=('waas-activity-tracker-config' 'waas-ca-config' 'waas-custom-rules-configmap' 'waas-elasticsearch-ilm-options-config' 'waas-elasticsearch-jvm-options-config' 'waas-identity-auth-config' 'waas-licenses-configmap' 'waas-logstash-jvm-options-config' 'waas-logstash-pipeline-config' 'waas-logstash-templates-config' 'waas-prometheus-config' 'waas-redis-init-config' 'waas-request-data-configmap')
 
 #Kubectl patch parameters for removing fields
-PATCH_STRING=('{"op": "remove", "path": "/metadata/uid"}' '{"op": "remove", "path": "/metadata/resourceVersion"}' '{"op": "remove", "path": "/metadata/selfLink"}' '{"op": "remove", "path": "/metadata/creationTimestamp"}' '{"op": "replace", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration", "value": ""}' '{"op": "remove", "path": "/status"}')
-PATCH_FIELD=('.metadata.uid' '.metadata.resourceVersion' '.metadata.selfLink' '.metadata.creationTimestamp' '.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration' '.status')
+PATCH_STRING=('{"op": "remove", "path": "/metadata/uid"}' '{"op": "remove", "path": "/metadata/resourceVersion"}' '{"op": "remove", "path": "/metadata/selfLink"}' '{"op": "remove", "path": "/metadata/creationTimestamp"}' '{"op": "replace", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration", "value": ""}' '{"op": "remove", "path": "/status"}' '{"op": "remove", "path": "/metadata/generation"}' '{"op": "remove", "path": "/metadata/finalizers"}')
+PATCH_FIELD=('.metadata.uid' '.metadata.resourceVersion' '.metadata.selfLink' '.metadata.creationTimestamp' '.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration' '.status' '.metadata.generation' '.metadata.finalizers')
 
 #Make sure ConfigMap output file is empty
 function cm_backup {
@@ -110,10 +111,10 @@ function crd_backup {
             
             TMP_PATCH_STRING=""
             for (( i=0; i<${#PATCH_FIELD[@]}; i++)); do
-                LAST_CONFIG=$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath={${PATCH_FIELD[$i]}})
+                LAST_CONFIG="$(kubectl get $CRD_TYPE --ignore-not-found --namespace $NS $NAME -o jsonpath={${PATCH_FIELD[$i]}})"
                 if [[ ! -z $LAST_CONFIG ]]; then TMP_PATCH_STRING+="${PATCH_STRING[$i]}"; fi
             done
-            
+
             #Seprate patch fields with comma
             TMP_PATCH_STRING=${TMP_PATCH_STRING//\}\{/\}, \{}
 
