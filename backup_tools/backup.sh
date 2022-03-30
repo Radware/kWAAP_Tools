@@ -50,8 +50,11 @@ TMP_ERROR=""
 CRD_TYPES=$(kubectl get crd -o jsonpath='{.items[?(@.spec.group=="waas.radware.com")].metadata.name}')
 #Convert CRD_TYPES to array
 CRD_TYPES=($CRD_TYPES)
-#List of ConfigMaps to backup
-CONFIG_MAPS_NAMES=('waas-activity-tracker-config' 'waas-ca-config' 'waas-custom-rules-configmap' 'waas-elasticsearch-ilm-options-config' 'waas-elasticsearch-jvm-options-config' 'waas-identity-auth-config' 'waas-licenses-configmap' 'waas-logstash-jvm-options-config' 'waas-logstash-pipeline-config' 'waas-logstash-templates-config' 'waas-prometheus-config' 'waas-redis-init-config' 'waas-request-data-configmap')
+#CONFIG_MAPS_NAMES=('waas-activity-tracker-config' 'waas-ca-config' 'waas-custom-rules-configmap' 'waas-elasticsearch-ilm-options-config' 'waas-elasticsearch-jvm-options-config' 'waas-identity-auth-config' 'waas-licenses-configmap' 'waas-logstash-jvm-options-config' 'waas-logstash-pipeline-config' 'waas-logstash-templates-config' 'waas-prometheus-config' 'waas-redis-init-config' 'waas-request-data-configmap')
+#Get list of ConfigMaps to backup (based on names starting with "waas-" not including the individual apps "waas-ca-config"s)
+CONFIG_MAPS_NAMES=$(kubectl get cm --all-namespaces | grep -Po "waas-[^ ]*" | grep -v "waas-ca-config-.*")
+#Convert CONFIG_MAPS_NAMES to array
+CONFIG_MAPS_NAMES=($CONFIG_MAPS_NAMES)
 
 #Kubectl patch parameters for removing fields
 PATCH_STRING=('{"op": "remove", "path": "/metadata/uid"}' '{"op": "remove", "path": "/metadata/resourceVersion"}' '{"op": "remove", "path": "/metadata/selfLink"}' '{"op": "remove", "path": "/metadata/creationTimestamp"}' '{"op": "replace", "path": "/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration", "value": ""}' '{"op": "remove", "path": "/status"}' '{"op": "remove", "path": "/metadata/generation"}' '{"op": "remove", "path": "/metadata/finalizers"}')
@@ -59,13 +62,12 @@ PATCH_FIELD=('.metadata.uid' '.metadata.resourceVersion' '.metadata.selfLink' '.
 
 #Make sure ConfigMap output file is empty
 function cm_backup {
-    cm_backup_data=""
     for CM_NAME in "${CONFIG_MAPS_NAMES[@]}"; do
         for CM in $(kubectl get cm --all-namespaces --ignore-not-found --field-selector metadata.name=$CM_NAME -o jsonpath='{range .items[*]}{@.metadata.name}{";;"}{@.metadata.namespace}{"\n"}{end}'); do
-            #Extract CRD name - the string up to ";;"
+            #Extract CM name - the string up to ";;"
             NAME=${CM%;;*}
             
-            #Extract CRD name - the string after ";;"
+            #Extract CM name - the string after ";;"
             NS=${CM#*;;}
             
             #Get full configmap definition 
@@ -82,22 +84,16 @@ function cm_backup {
             TMP_PATCH_STRING=${TMP_PATCH_STRING//\}\{/\}, \{}
 
             #Remove fields based on the parameter value above
-            cm_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
+            BACKUP_DATA+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
 
-            #Add delimiter to output file
-            cm_backup_data+="\\n---\\n"
+            #Add delimiter to output
+            BACKUP_DATA+="\\n---\\n"
         done
     done
-    # in case configmaps were collected write to file
-    if [[ ! -z $cm_backup_data ]]; then
-        echo -e "$cm_backup_data" > cm_backup.yml
-        CLEANUP_LIST+=('cm_backup.yml')
-    fi
 }
 
 function crd_backup {
     for CRD_TYPE in "${CRD_TYPES[@]}"; do
-        crd_backup_data=""
         #get all CRD names and namespaces, delimited by ";;"
         for CRD in $(kubectl get $CRD_TYPE --all-namespaces --ignore-not-found -o jsonpath='{range .items[*]}{@.metadata.name}{";;"}{@.metadata.namespace}{"\n"}{end}'); do
             #Extract CRD name - the string up to ";;"
@@ -118,15 +114,12 @@ function crd_backup {
             #Seprate patch fields with comma
             TMP_PATCH_STRING=${TMP_PATCH_STRING//\}\{/\}, \{}
 
-            crd_backup_data+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
+            #Remove fields based on the parameter value above
+            BACKUP_DATA+="$(echo "$OBJ" | kubectl patch -f - --dry-run=client --type=json --patch="[$TMP_PATCH_STRING]" -o yaml)"
             
-            #Add delimiter to output file
-            crd_backup_data+="\\n---\\n"
+            #Add delimiter to output
+            BACKUP_DATA+="\\n---\\n"
         done
-        if [[ ! -z $crd_backup_data ]]; then
-            echo -e "$crd_backup_data" > "${CRD_TYPE}_backup.yml"
-            CLEANUP_LIST+=("${CRD_TYPE}_backup.yml")
-        fi
     done
 }
 ##TODO: 
@@ -244,23 +237,26 @@ fi
 
 if [[ ! -z $BACKUP ]]; then
     #Run Backup functions
-    CLEANUP_LIST=()
+    BACKUP_DATA=""
     cm_backup
     crd_backup
+    if [[ ! -z $BACKUP_DATA ]]; then
+        echo -e "$BACKUP_DATA"
+    fi
 
     #In case filename was provided use it, otherwise set default output filename
-    if [[ -z $BACKUP_TAR ]]; then
-        BACKUP_TAR="waas_backup_$(date "+%d-%m-%y").tgz"
-    fi
+    #if [[ -z $BACKUP_TAR ]]; then
+    #    BACKUP_TAR="waas_backup_$(date "+%d-%m-%y").tgz"
+    #fi
 
     #Archive all backup YAML files 
-    tar -czf $BACKUP_TAR *.yml
+    #tar -czf $BACKUP_TAR *.yml
 
     #If archive was successful - print output filename and cleanup
-    if [ $? -eq 0 ]; then
-        echo "Backup completed successfully, result filename is $BACKUP_TAR"
-	    for backup_file in "${CLEANUP_LIST[@]}"; do
-            rm $backup_file
-        done
-    fi
+    #if [ $? -eq 0 ]; then
+    #    echo "Backup completed successfully, result filename is $BACKUP_TAR"
+	#    for backup_file in "${CLEANUP_LIST[@]}"; do
+    #        rm $backup_file
+    #    done
+    #fi
 fi
