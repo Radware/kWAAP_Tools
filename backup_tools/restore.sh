@@ -3,19 +3,26 @@
 ERRORS=()
 TMP_ERROR=""
 
+#Backup original IFS (word seperator)
 OLD_IFS="$IFS"
 IFS=$'\n'
 
+#Read input
 if [ -n "$1" ]; then
+    #Script wass triggered with argument, check if there is a file by that name
     if [[ -f "$1" ]]; then 
+        # Found a file - read content into the INPUT param
         INPUT="$(cat $1)"
     else
+        #No such file, read the argument as the actual input
         INPUT="$1"
     fi
 else
+    # No arguments provided, read STDIO
     INPUT="$(cat)"
 fi
 
+#Split the input to an array, each k8s object is an element
 i=0
 INPUT_ARRAY=()
 for item in $INPUT; do
@@ -27,26 +34,26 @@ for item in $INPUT; do
 done
 
 function recover_backup {
-	#Iterate over the backup files
+	#Iterate over the backup objects
 	for object in "${INPUT_ARRAY[@]}"; do
-        # echo -e "$object"
+        #Get object name, ns and kind
         BACKUP_NAME=$(echo -e "$object" | kubectl apply -f - --dry-run=client -o jsonpath='{.metadata.name}')
         BACKUP_NS=$(echo -e "$object" | kubectl apply -f - --dry-run=client -o jsonpath='{.metadata.namespace}') 
         BACKUP_KIND=$(echo -e "$object" | kubectl apply -f - --dry-run=client -o jsonpath='{.kind}') 
         
+        #Verify object NS exists, if not - create it
         if [[ -z $(kubectl get namespace $BACKUP_NS --ignore-not-found ) ]]; then 
             kubectl create namespace $BACKUP_NS
         fi
 
-
-        #If such a resource already exist - get the resource version
+        #Check if resource already exists
         RESOURCE=$(kubectl get $BACKUP_KIND --ignore-not-found --namespace $BACKUP_NS $BACKUP_NAME --no-headers)
-        #If the element exists - add the current resource version to the backup yml so the apply will pass
 
         if [[ -n $RESOURCE ]]; then
+            #Resource exists, use 'replace' to restore the object
             TMP_ERROR=$(echo -e "$object" | kubectl replace -f - 2>&1 > /dev/null | sed "/patched automatically/d")
         else
-            #Get stderr from apply, while ignoring any line containing "patched automatically" message
+            #Resource doesn't exists, use 'apply' to restore the object
             TMP_ERROR=$(echo -e "$object" | kubectl apply -f - 2>&1 > /dev/null | sed "/patched automatically/d")
         fi
 
