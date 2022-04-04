@@ -8,7 +8,7 @@ IFS=$'\n'
 #Get List of CRDs to backup (based on "waas.radware.com" group)
 CRD_TYPES=($(kubectl api-resources --api-group=waas.radware.com --output=name))
 
-#Get list of ConfigMaps to backup (based on names starting with "waas-" not including the individual apps "waas-ca-config"s)
+#Get list of ConfigMaps to backup (based on app.kubernetes.io/name="WAAS" label)
 CONFIG_MAPS=($(kubectl get configmap --selector app.kubernetes.io/name="WAAS" --output jsonpath='{range .items[*]}{"--namespace="}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' --all-namespaces))
 
 #Revert to original separator
@@ -41,12 +41,15 @@ function cm_backup {
     for CM in "${CONFIG_MAPS[@]}"; do
         #Get full configmap definition 
         OBJ="$(kubectl get configmap --ignore-not-found $CM --output=json)"
-        
+
         #Define the string for interaction with kubernetes
         OBJ_STR="kubectl get configmap --ignore-not-found $CM"
-        
+
         #Remove fields and echo the result
         patch_and_echo
+
+        #Print progress to stderr
+        echo "$CM backedup successfully" >&2
     done
 }
 
@@ -61,12 +64,15 @@ function crd_backup {
 
             #Get full CRD definition 
             OBJ="$(kubectl get $CRD_TYPE --ignore-not-found $CRD --output=json)"
-            
+
             #Define the string for interaction with kubernetes
             OBJ_STR="kubectl get $CRD_TYPE --ignore-not-found $CRD"
 
             #Remove fields and echo the result
             patch_and_echo
+
+            #Print progress to stderr
+            echo "$CRD backedup successfully" >&2
         done
     done
 }
