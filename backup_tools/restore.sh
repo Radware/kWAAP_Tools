@@ -1,4 +1,5 @@
 #! /bin/bash
+set -f
 
 ERRORS=()
 TMP_ERROR=""
@@ -24,7 +25,11 @@ else
     INPUT="$(cat)"
 fi
 
+INPUT="${INPUT//$'\n'/\\n}"
+
 function recover_backup {
+    OBJECT="${OBJECT//\\n/$'\n'}"
+
     #Get object name, ns and kind
     BACKUP_NAME=$(echo "$OBJECT" | kubectl apply -f - --dry-run=client -o jsonpath='{.metadata.name}')
     BACKUP_NS=$(echo "$OBJECT" | kubectl apply -f - --dry-run=client -o jsonpath='{.metadata.namespace}') 
@@ -37,7 +42,6 @@ function recover_backup {
 
     #Check if resource already exists
     RESOURCE=$(kubectl get $BACKUP_KIND --ignore-not-found --namespace $BACKUP_NS $BACKUP_NAME --no-headers)
-
 
     if [[ -n $RESOURCE ]]; then
         #Resource exists, use 'replace' to restore the object
@@ -58,17 +62,12 @@ function recover_backup {
 #In case input containes more than one objcet (Delimiter-separated)
 #Iterate over each object performing the "recover_backup" function
 #Otherwise perform the operation on the entire input
-if [[ "$INPUT" == *"$OBJECT_DELIMITER"* ]]; then
-     for item in $INPUT; do
-        if [[ $item == "---" ]]; then 
-            if [[ $OBJECT != $OBJECT_DELIMITER$IFS ]]; then
-                recover_backup
-            fi 
-            OBJECT=""
-        fi
-        OBJECT+="$item$IFS"
-    done
-else
+while [[ "$INPUT" == *"$OBJECT_DELIMITER"* ]]; do
+    OBJECT="${INPUT%%"$OBJECT_DELIMITER"*}"
+    recover_backup
+    INPUT=${INPUT#*"$OBJECT_DELIMITER"}
+done
+if [[ $INPUT == *"\\n"* ]]; then
     OBJECT=$INPUT
     recover_backup
 fi
@@ -82,5 +81,3 @@ else
     echo -e "\nRecovery finished successfully\n"
     exit 0
 fi
-
-IFS=$OLD_IFS
