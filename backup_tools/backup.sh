@@ -19,6 +19,13 @@ PATCH_STRING=('{"op": "remove", "path": "/metadata/uid"}' '{"op": "remove", "pat
 PATCH_FIELD=('.metadata.uid' '.metadata.resourceVersion' '.metadata.selfLink' '.metadata.creationTimestamp' '.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration' '.status' '.metadata.generation' '.metadata.finalizers')
 
 function patch_and_echo {
+    #If raw argument provided - echo object w\o performing field removal (in YAML format)
+    if [[ $RAW == 1 ]]; then
+        echo "$OBJ" | kubectl apply -f - --dry-run=client --output=yaml
+        echo "---"
+        return
+    fi
+
     #Generate patch string based on object fields
     TMP_PATCH_STRING=""
     for (( i=0; i<${#PATCH_FIELD[@]}; i++)); do
@@ -76,7 +83,21 @@ function crd_backup {
         done
     done
 }
+CRD_ONLY=0
+CM_ONLY=0
+RAW=0
+while test $# -gt 0; do
+    case "$1" in
+        --crd_only|CRD_ONLY)
+            CRD_ONLY=1;;
+        --cm_only|CM_ONLY)
+            CM_ONLY=1;;
+        --raw|RAW)
+            RAW=1;;
+    esac
+    shift
+done
 
-if [[ $1 != "CRD_ONLY" ]]; then cm_backup; fi
-if [[ $1 != "CM_ONLY" ]]; then crd_backup; fi
+if [[ $CRD_ONLY != 1 ]]; then cm_backup; fi
+if [[ $CM_ONLY != 1 ]]; then crd_backup; fi
 

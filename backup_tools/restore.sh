@@ -25,10 +25,10 @@ else
     INPUT="$(cat)"
 fi
 
-INPUT="${INPUT//$'\n'/\\n}"
+INPUT="${INPUT//$'\n'/restoreNewLine\\n}"
 
 function recover_backup {
-    OBJECT="${OBJECT//\\n/$'\n'}"
+    OBJECT="${OBJECT//restoreNewLine\\n/$'\n'}"
 
     #Get object name, ns and kind
     BACKUP_NAME=$(echo "$OBJECT" | kubectl apply -f - --dry-run=client -o jsonpath='{.metadata.name}')
