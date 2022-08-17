@@ -4,7 +4,7 @@ set -f
 ERRORS=()
 TMP_ERROR=""
 OBJECT=""
-OBJECT_DELIMITER="---"
+OBJECT_DELIMITER="radwareRestoreDelimiter"
 
 #Backup original IFS (word seperator)
 OLD_IFS="$IFS"
@@ -25,6 +25,7 @@ else
     INPUT="$(cat)"
 fi
 
+INPUT="${INPUT//$'---\n'/radwareRestoreDelimiter$'\n'}"
 INPUT="${INPUT//$'\n'/restoreNewLine\\n}"
 
 function recover_backup {
