@@ -29,11 +29,11 @@ CRD_TYPES=($(kubectl api-resources --api-group=waas.radware.com --output=name))
 
 #Get list of ConfigMaps to backup 
 # In case RAW arg was used get all CMs based on app.kubernetes.io/name="WAAS" label
-# Otherwise backup only the CustomRules CM
+# Otherwise backup only the CustomRules CM based on kwaf-configmap-type="custom-rules" label
 if [[ $ALL_CM == 1 ]]; then
     CONFIG_MAPS=($(kubectl get configmap --selector app.kubernetes.io/name="WAAS" --output jsonpath='{range .items[*]}{"--namespace="}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' --all-namespaces))
 else 
-    CONFIG_MAPS=('waas-custom-rules-configmap')
+    CONFIG_MAPS=($(kubectl get configmap --selector kwaf-configmap-type="custom-rules" --output jsonpath='{range .items[*]}{"--namespace="}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' --all-namespaces))
 fi
 
 #Revert to original separator
