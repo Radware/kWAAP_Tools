@@ -1,5 +1,24 @@
 #! /bin/bash
 
+# Parse args
+CRD_ONLY=0
+CM_ONLY=0
+RAW=0
+ALL_CM=0
+while test $# -gt 0; do
+    case "$1" in
+        --crd_only|CRD_ONLY)
+            CRD_ONLY=1;;
+        --cm_only|CM_ONLY)
+            CM_ONLY=1;;
+        --raw|RAW)
+            RAW=1;;
+        --all_cm|ALL_CM)
+            ALL_CM=1;;
+    esac
+    shift
+done
+
 #Backup original IFS (word separator) 
 OLD_IFS="$IFS"
 #Define separator to NewLine only
@@ -8,8 +27,14 @@ IFS=$'\n'
 #Get List of CRDs to backup (based on "waas.radware.com" group)
 CRD_TYPES=($(kubectl api-resources --api-group=waas.radware.com --output=name))
 
-#Get list of ConfigMaps to backup (based on app.kubernetes.io/name="WAAS" label)
-CONFIG_MAPS=($(kubectl get configmap --selector app.kubernetes.io/name="WAAS" --output jsonpath='{range .items[*]}{"--namespace="}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' --all-namespaces))
+#Get list of ConfigMaps to backup 
+# In case RAW arg was used get all CMs based on app.kubernetes.io/name="WAAS" label
+# Otherwise backup only the CustomRules CM
+if [[ $ALL_CM == 1 ]]; then
+    CONFIG_MAPS=($(kubectl get configmap --selector app.kubernetes.io/name="WAAS" --output jsonpath='{range .items[*]}{"--namespace="}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' --all-namespaces))
+else 
+    CONFIG_MAPS=('waas-custom-rules-configmap')
+fi
 
 #Revert to original separator
 IFS=$OLD_IFS
@@ -83,20 +108,6 @@ function crd_backup {
         done
     done
 }
-CRD_ONLY=0
-CM_ONLY=0
-RAW=0
-while test $# -gt 0; do
-    case "$1" in
-        --crd_only|CRD_ONLY)
-            CRD_ONLY=1;;
-        --cm_only|CM_ONLY)
-            CM_ONLY=1;;
-        --raw|RAW)
-            RAW=1;;
-    esac
-    shift
-done
 
 if [[ $CRD_ONLY != 1 ]]; then cm_backup; fi
 if [[ $CM_ONLY != 1 ]]; then crd_backup; fi
