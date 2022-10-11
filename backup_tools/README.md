@@ -36,13 +36,13 @@ Following CLI arguments can be used to change default backup behavior
  <sub> this option should be used for configuration gathering only, retoring "RAW" backup is not supported.</sub>
 
 Usage Example: 
-`user@server$ ./backup.sh --crd_only > /tmp/kwaf_backup.yaml'
+`user@server$ ./backup.sh --crd_only > /tmp/kwaf_backup.yaml`
 
 ### Restore ###
 The restore utility can get the configuration either by provided filename (including path) in wich case it will read the file to get the config, or by reading the `stdin` in case the configuration was sent to the script dyrectly
 
 Filename Example:
-`user@server$ ./restore.sh /tmp/kwaf_backup.yaml'
+`user@server$ ./restore.sh /tmp/kwaf_backup.yaml`
 
 Redirect example:
-`user@server$ cat /tmp/kwaf_backup.yaml | restore.sh'
+`user@server$ cat /tmp/kwaf_backup.yaml | restore.sh`
