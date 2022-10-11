@@ -30,9 +30,9 @@ By default the backup utility will use `kubectl` for geting YAML config of all k
 Following CLI arguments can be used to change default backup behavior
  - Use `--crd_only` or `CRD_ONLY` to skip Config Maps
  - Use `--cm_only` or `CM_ONLY` to skip Custom Resources
- - Use `--all_cm` or `ALL_CM` to backup all kWAF related ConfigMaps
+ - Use `--all_cm` or `ALL_CM` to backup all kWAF related ConfigMaps <br>
  <sub> this option is not recomended in case of kWAF upgrades </sub>
- - Use `--raw` or `RAW` to skip dynamic fields stripping (such as creation timestamp, resourceVersion, etc..) 
+ - Use `--raw` or `RAW` to skip dynamic fields stripping (such as creation timestamp, resourceVersion, etc..) <br>
  <sub> this option should be used for configuration gathering only, retoring "RAW" backup is not supported.</sub>
 
 Usage Example: 
