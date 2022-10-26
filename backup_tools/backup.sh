@@ -1,5 +1,13 @@
 #! /bin/bash
 
+# /*
+#  * ******************************************************************************
+#  *  * Copyright © 2019-2022, Radware Ltd., all rights reserved.
+#  *  * The programs and information contained herein are licensed only and not sold.
+#  *  * The applicable license terms are posted at https://www.radware.com/documents/eula/ and they are also available directly from Radware Ltd.
+#  *  *****************************************************************************
+#  */
+
 # Parse args
 CRD_ONLY=0
 CM_ONLY=0
