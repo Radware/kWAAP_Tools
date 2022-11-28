@@ -52,7 +52,7 @@ Following CLI arguments can be used to change default backup behavior
  <sub> this option should be used for configuration gathering only, retoring "RAW" backup is not supported.</sub>
 
 Usage Example: 
-`user@server$ ./kwaf_tools.sh --backup --crd_only > /tmp/kwaf_crd.yaml`
+`user@server$ ./kwaf_tools.sh --backup --crd_only > /tmp/kwaf_crd.yaml` <br>
 `user@server$ ./kwaf_tools.sh --backup > /tmp/kwaf_backup.yaml`
 
 ### Restore ###
