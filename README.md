@@ -26,8 +26,7 @@ This utility requires:
 Use command line arguments to choose desired operation
 
 | Argument | Description |
-| --- | --- |
-
+| --- | --- | --- |
 | `--backup` | Perform the backup operation |
 | `--restore` | Perform the restore operation |
 | `--techdata` | Collect technical data infromation |
