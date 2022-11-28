@@ -26,17 +26,17 @@ This utility requires:
 Use command line arguments to choose desired operation
 
 | Argument | Description |
-| --- | --- | --- |
+| --- | --- | 
 | `--backup` | Perform the backup operation |
 | `--restore` | Perform the restore operation |
 | `--techdata` | Collect technical data infromation |
 | `--crd_only` | Skip Config Maps |
 | `--cm_only` | Skip Custom Resources |
-| `--all_cm` | Backup all kWAF related ConfigMaps.<br><sub>not recomended to use outside of techdata collection`</sub>|
-| `--raw_output` | Skip removal of dynamic fields (`resourceVersion`, `uid`, etc..).<br><sub>`not recomended to use outside of techdata collection`</sub>|
-| `-n` or `--namespace` | The Namespace in which KWAF is installed. default: `kwaf`|
-| `-r` or `--releasename` | The Helm release name with which KWAF was installed. default: `waas`|
-| `-h` or `--help` | Print help message and exit|
+| `--all_cm` | Backup all kWAF related ConfigMaps.<br><sub>*Not recomended to use outside of techdata collection</sub> |
+| `--raw_output` | Skip removal of dynamic fields (`resourceVersion`, `uid`, etc..).<br><sub>*Not recomended to use outside of techdata collection</sub> |
+| `-n` or `--namespace` | The Namespace in which KWAF is installed. default: `kwaf` |
+| `-r` or `--releasename` | The Helm release name with which KWAF was installed. default: `waas` |
+| `-h` or `--help` | Print help message and exit |
 
 ### Techdata ###
 
