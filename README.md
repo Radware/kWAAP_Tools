@@ -10,16 +10,16 @@ kWAF-related tools and scripts for internal / external usage.
   * [Restore](#restore)
 
 ## Description ##
-Following script is used to collect technical information, backup and restore kWAF configuration.
+Following script is used to collect technical information, backup and restore kWAAP configuration.
 All the configurations collected by this tool will be printed to `stdout` use CLI redirect (`>` or `>>`) or terminal logging for saving to a file.
 while performing the restore operation, in case the utility encounters a configuration in a none-existing namespace it will attempt to create the namespace using `kubectl create namespace` command 
 
 ## Requirements ##
 This utility requires:
- - Connectivity to the k8s cluster running kWAF
+ - Connectivity to the k8s cluster running kWAAP
  - kubectl installed and configured with relevant permissions
- * Backup utility requires read pemissions to kWAF related objects (Custom-resources as well as relevant ConfigMaps) in all namespaces
- * Restore utility requires write pemissions on kWAF related objects (Custom-resources as well as relevant ConfigMaps) in relevant namespaces
+ * Backup utility requires read pemissions to kWAAP related objects (Custom-resources as well as relevant ConfigMaps) in all namespaces
+ * Restore utility requires write pemissions on kWAAP related objects (Custom-resources as well as relevant ConfigMaps) in relevant namespaces
  * Restore utility may require Namespace creation permission as well
 
 ## Usage ##
@@ -32,22 +32,22 @@ Use command line arguments to choose desired operation
 | `--techdata` | Collect technical data infromation |
 | `--crd_only` | Skip Config Maps |
 | `--cm_only` | Skip Custom Resources |
-| `--all_cm` | Backup all kWAF related ConfigMaps.<br><sub>*Not recomended to use outside of techdata collection</sub> |
+| `--all_cm` | Backup all kWAAP related ConfigMaps.<br><sub>*Not recomended to use outside of techdata collection</sub> |
 | `--raw_output` | Skip removal of dynamic fields (`resourceVersion`, `uid`, etc..).<br><sub>*Not recomended to use outside of techdata collection</sub> |
-| `-n` or `--namespace` | The Namespace in which KWAF is installed. default: `kwaf` |
-| `-r` or `--releasename` | The Helm release name with which KWAF was installed. default: `waas` |
+| `-n` or `--namespace` | The Namespace in which kWAAP is installed. default: `kwaf` |
+| `-r` or `--releasename` | The Helm release name with which kWAAP was installed. default: `waas` |
 | `-h` or `--help` | Print help message and exit |
 
 ### Techdata ###
 
 ### Backup ###
-By default the backup utility will use `kubectl` for geting YAML config of all kWAF Custom Resources as well as the `waas-custom-rules-configmap` ConfigMap.
+By default the backup utility will use `kubectl` for geting YAML config of all kWAAP Custom Resources as well as the `waas-custom-rules-configmap` ConfigMap.
 
 Following CLI arguments can be used to change default backup behavior
  - Use `--crd_only` or `CRD_ONLY` to skip Config Maps
  - Use `--cm_only` or `CM_ONLY` to skip Custom Resources
- - Use `--all_cm` or `ALL_CM` to backup all kWAF related ConfigMaps <br>
- <sub> this option is not recomended in case of kWAF upgrades </sub>
+ - Use `--all_cm` or `ALL_CM` to backup all kWAAP related ConfigMaps <br>
+ <sub> this option is not recomended in case of kWAAP upgrades </sub>
  - Use `--raw` or `RAW` to skip dynamic fields stripping (such as creation timestamp, resourceVersion, etc..) <br>
  <sub> this option should be used for configuration gathering only, retoring "RAW" backup is not supported.</sub>
 
