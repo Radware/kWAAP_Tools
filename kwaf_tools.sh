@@ -32,9 +32,9 @@ function print_delimiter {
 }
 
 function print_help {
-  printf '\nKWAF techdata dump script help.\n Flags:\n'
-  printf '\t -n, --namespace \t\t The Namespace in which KWAF is installed. default: %s\n' "$DEFAULT_NAMESPACE"
-  printf '\t -r, --releasename \t\t The Helm release name with which KWAF was installed. default: %s\n' "$DEFAULT_HELM_RELEASE_NAME"
+  printf '\nKWAAP techdata dump script help.\n Flags:\n'
+  printf '\t -n, --namespace \t\t The Namespace in which KWAAP is installed. default: %s\n' "$DEFAULT_NAMESPACE"
+  printf '\t -r, --releasename \t\t The Helm release name with which KWAAP was installed. default: %s\n' "$DEFAULT_HELM_RELEASE_NAME"
 }
 
 while test $# -gt 0; do
@@ -109,7 +109,7 @@ function techdata() {
                             'kubectl get -n %s secret'
                             'kubectl get -n %s cm')
     
-    printf "\n\n =====> KWAF techdata script start\n\n"
+    printf "\n\n =====> kWAAP techdata script start\n\n"
     printf "NAMESPACE  = %s\n" "$NAMESPACE"
     printf "HELM_RELEASE_NAME = %s\n" "$HELM_RELEASE_NAME"
 
@@ -274,7 +274,7 @@ if [[ -n "$TDATA" ]]; then
     ((CTR=CTR+1))
     cm_backup
     
-    printf "\n\n =====> KWAF techdata script end\n\n"
+    printf "\n\n =====> KWAAP techdata script end\n\n"
 fi
 
 if [[ -n "$BKP" ]]; then 

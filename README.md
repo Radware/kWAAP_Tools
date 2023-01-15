@@ -1,5 +1,5 @@
 # kWAF_Tools
-kWAF-related tools and scripts for internal / external usage.
+KWAAP-related tools and scripts for internal / external usage.
 
 ## Table Of Contents ###
 - [Description](#description )
