@@ -1,4 +1,4 @@
-# kWAF_Tools
+# kWAAP_Tools
 KWAAP-related tools and scripts for internal / external usage.
 
 ## Table Of Contents ###
@@ -52,14 +52,14 @@ Following CLI arguments can be used to change default backup behavior
  <sub> this option should be used for configuration gathering only, retoring "RAW" backup is not supported.</sub>
 
 Usage Example: 
-`user@server$ ./kwaf_tools.sh --backup --crd_only > /tmp/kwaf_crd.yaml` <br>
-`user@server$ ./kwaf_tools.sh --backup > /tmp/kwaf_backup.yaml`
+`user@server$ ./tools.sh --backup --crd_only > /tmp/kwaap_crd.yaml` <br>
+`user@server$ ./tools.sh --backup > /tmp/kwaap_backup.yaml`
 
 ### Restore ###
 The restore utility can get the configuration either by provided filename (including path) in wich case it will read the file to get the config, or by reading the `stdin` in case the configuration was sent to the script dyrectly
 
 Filename Example:
-`user@server$ ./kwaf_tools.sh --restore  /tmp/kwaf_crd.yaml`
+`user@server$ ./tools.sh --restore  /tmp/kwaap_crd.yaml`
 
 Redirect example:
-`user@server$ cat /tmp/kwaf_backup.yaml | kwaf_tools.sh --restore`
+`user@server$ cat /tmp/kwaap_backup.yaml | tools.sh --restore`
