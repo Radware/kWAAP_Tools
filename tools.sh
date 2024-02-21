@@ -94,7 +94,7 @@ function techdata() {
     CMDS_WITHOUT_ARGS=( 'whoami'
                         'command -v kubectl'
                         'command -v helm'
-                        'kubectl version'
+                        'kubectl version --output=yaml'
                         'helm version'
                         'kubectl config get-contexts'
                         'kubectl get crd'
