@@ -1,0 +1,31 @@
+{
+	"collected_data": {
+		"security_events": true,
+		"access_logs": true,
+		"requst_data": false,
+		"logs": true,
+		"previous_logs": false
+	},
+	"app_containers": {
+		"radware": [
+			{
+				"pods": ["waas-sample-app-httpbin-deployment-64f58df466-vqlz9", "waas-sample-app-nginx-deployment-5b96c999c7-7wmpn"],
+				"containers": ["enforcer", "fluentbit"]
+			},
+			{
+				"pods": ["waas-sample-app-nginxh2c-deployment-6876656f7d-lckm9","waas-gui-deployment-7d4f67b48-ld7gc"],
+				"containers": []
+			},
+			{
+				"pods": ["waas-sample-app-grpcx-deployment-656d7956f9-8p5wg"],
+				"containers": ["logrotate"]
+			},	
+			{
+				"pods": [],
+				"containers": ["controller", "elasticsearch"]
+			}			
+		],
+		"cert_manager": [	
+		]
+	}
+}
