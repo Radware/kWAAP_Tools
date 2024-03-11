@@ -54,11 +54,16 @@ while [[ $# -gt 0 ]]; do
             BKP_PARAMS+=" --backup"
 			shift
 			;;
-        --restore|RESTORE) 
+        --restore|RESTORE)
+                        if [ -z "$2" ] || [[ "$2" == "-"* ]]; then
+                                print_error "Error: --restore|RESTORE requires an additional parameter which is the file from which to restore from."
+                                exit 1
+                        fi
+                        BKP_PARAMS+=" --restore $2"
 			RSTR=1
-			BKP_PARAMS+=" --restore"
-			shift
-			;;
+                        shift
+                        shift
+                        ;;
         --crd_only|CRD_ONLY) 
             BKP_PARAMS+=" --crd_only"
 			TDATA_PARAMS+=" --crd_only"
@@ -169,7 +174,7 @@ while [[ $# -gt 0 ]]; do
 			exit 1
 			;;
 		*)
-			echo "Error: Invalid option -$arg"
+			echo "Error: Invalid option -$1"
 			exit 1
 			;;
 	esac
