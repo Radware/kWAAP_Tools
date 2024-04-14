@@ -18,7 +18,7 @@ DEFAULT_HELM_RELEASE_NAME="waas"
 NAMESPACE=$DEFAULT_NAMESPACE
 HELM_RELEASE_NAME=$DEFAULT_HELM_RELEASE_NAME
 
-CONFIG_MAPS_FILENAME="comfig_maps"
+CONFIG_MAPS_FILENAME="config_maps"
 CRDs_FILENAME="crds"
 MANIFEST_FILENAME="manifest.yaml"
 DEPLOYMENTS_FILENAME="deployments.yaml"
@@ -150,7 +150,7 @@ techdata() {
                             "kubectl get -n %s cm" "" ""
 							"kubectl get deployments,statefulsets,daemonsets -n %s -o=jsonpath='{range .items[*]}{.metadata.namespace}{\"\\\\t\"}{.kind}{\"\\\\t\"}{.metadata.name}{\"\\\\t\"}{.spec.template.spec.containers[*].image}{\"\\\\n\"}{end}'" "" "List of used images"
 							)
-	if [ "$MEMORY_CPU_USAGE" -eq 1 ]; then
+	if [[ "$MEMORY_CPU_USAGE" -eq 1 ]]; then
 		metrics_server_install_and_validate
 		if  [[ $? -eq 1 ]]; then
 			CMDS_WITHOUT_ARGS+=("kubectl top nodes" "" "")

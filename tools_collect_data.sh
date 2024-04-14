@@ -9,6 +9,7 @@ CONTAINER_NAME=""
 CONTAINERS_ARGUMENT_LIST=()
 COLLECT_DESCRIBES=true # - currently always collected
 DESCRIBES_FILE_PREFIX="logs"
+RESOURCES_FILE_PREFIX="resources"
 COLLECT_CONFIG_DUMP=false
 CONFIG_DUMP_FILE_PREFIX="config_dump"
 COLLECT_SEC_EVENTS=false
@@ -29,6 +30,8 @@ IS_CMD_LINE_ARGS_USED=false
 LOCALHOST="127.0.0.1"
 ENFORCER_CONTAINER_PORT=19000 
 ENFORCER_CONT_NAME="enforcer"
+declare -a NODEJS_CONTAINERS_ARRAY=("events-fetcher" "profiles" "identity")
+declare -a JVM_CONTAINERS_ARRAY=("elasticsearch" "logstash")
 
 print_help() {
   printf '\nKWAAP techdata config-dump script help.\n Flags:\n'
@@ -199,10 +202,28 @@ logs() {
 	handle_cmd_and_output "${LOGS_FILE_PREFIX}${prev}_$pod" "$cmd"
 }
 
+get_nodejs_heap_size() {
+	local ns=$1 # arg1 - Namespace
+	local pod=$2 # arg2 - Pod name
+	local container=$3 # arg3 - Container name
+	print_msg "\nGetting NODE.JS heap size from namespace:'$ns', pod:'$pod', container:'$3'. -"
+	cmd="kubectl exec -it $pod -n $ns -c $container -- sh -c \"echo;echo -n '$container NodeJS container heap size :  ' ;node -e 'console.log(v8.getHeapStatistics().heap_size_limit/(1024*1024))'| sed -r 's/\x1B\[(;?[0-9]{1,3})//g'\""
+	handle_cmd_and_output "${RESOURCES_FILE_PREFIX}_$pod" "$cmd"
+}
+
+get_jvm_configuration() {
+	local ns=$1 # arg1 - Namespace
+	local pod=$2 # arg2 - Pod name
+	local container=$3 # arg3 - Container name
+	print_msg "\nGetting JVM configuration from namespace:'$ns', pod:'$pod', container:'$3'. -"
+	cmd="kubectl exec -it $pod -n $ns -c $container -- sh -c \"echo;echo '$container JVM container configuration : ';find /usr/share/$container/settings -name jvm.options| xargs cat;echo ;echo\""
+	handle_cmd_and_output "${RESOURCES_FILE_PREFIX}_$pod" "$cmd"
+
+}
 collect_containers_techdata() {
 	local parsed_containers_arg_array=("$@")
 	
-	for item in ${parsed_containers_arg_array[@]}; do	
+	for item in ${parsed_containers_arg_array[@]}; do
 		IFS='&' read -r ns pod container <<< "$item"
 		if [ "$container" == "$ENFORCER_CONT_NAME" ]; then
 			if [ "$COLLECT_CONFIG_DUMP" = true ]; then
@@ -218,7 +239,16 @@ collect_containers_techdata() {
 				request_data "$ns" "$pod"
 			fi
 		fi
-		
+		for node_cont in ${NODEJS_CONTAINERS_ARRAY[@]}; do
+			if [ "$container" == "$node_cont" ]; then
+				get_nodejs_heap_size "$ns" "$pod" "$container"
+			fi
+		done
+		for jvm_cont in ${JVM_CONTAINERS_ARRAY[@]}; do
+			if [ "$container" == "$jvm_cont" ]; then
+				get_jvm_configuration "$ns" "$pod" "$container"
+			fi
+		done
 		if [ "$COLLECT_LOGS" = true ]; then
 			logs "$ns" "$pod" "$container" 
 		fi
