@@ -35,7 +35,7 @@ METRICS_SERVER_CONFIG_REMOTE="https://github.com/kubernetes-sigs/metrics-server/
 METRICS_SERVER_CONFIG_LOCAL="components.yaml"
 METRICS_SERVER_CONFIG_USED=$METRICS_SERVER_CONFIG_REMOTE
 
-# extract_containers_arg_from_json_args_file - extracts "--containers" arg value from JSON file 
+# extract_containers_arg_from_json_args_file - extracts "--containers" arg value from JSON file
 # @params: arg1: json file-name
 #          arg2: "--containers" key-name
 # @return: CONTAINERS_ARG_LIST in format as of "--containers" arg 

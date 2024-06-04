@@ -8,16 +8,17 @@
 #  *  *****************************************************************************
 #  */
 
-source tools_utils.sh
+
 
 TDATA_PARAMS=""
 COLLECT_DATA_PARAMS=""
 BKP_PARAMS=""
-
+VERSION="1.17.0"
 ARCHIVE=false
 
 function print_help {
   printf '\nKWAAP techdata dump script help.\n Flags:\n'
+  printf '\t -v, --version \t\t display current version.'
   printf '\t -n, --techdata \t\t Collect technical data infromation.'
   printf '\t -n, --backup \t\t Perform the backup operation.'
   printf '\t -n, --restore \t\t Perform the restore  operation.'
@@ -32,9 +33,11 @@ function print_help {
   printf '\t -c, --containers \t\t The list of pods and containers per namespaces for which data will be collected.\n\tFormat:"ns1:pod1#cont1,pod2;ns2:;ns3:#cont2". Default: The list of ALL pods and containers defined by "--namespace" and "--container" args\n' 
   printf '\t -af, --args-file \t\t The filename of JSON file that is used in place of the "--containers" , and other data collection arguments.\n' 
   printf '\t -cd, --config-dump \t\t The boolean determines whether config-dump should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
+  printf '\t -lc, --latency-control \t\t The boolean determines whether latency-control should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
+  printf '\t -pm, --pmap \t\t The boolean determines whether pmap should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
   printf '\t -se, --security-events \t\t The boolean determines whether security-events should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
   printf '\t -al, --access-logs \t\t The boolean determines whether access-logs should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
-  printf '\t -rd, --requst-data \t\t The boolean determines whether requst-data should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n' 
+  printf '\t -rd, --request-data \t\t The boolean determines whether request-data should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
   printf '\t -l, --logs \t\t The boolean determines whether logs should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n' 
   printf '\t -pl, --previous-logs \t\t The boolean determines whether previous logs should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n' 
   printf '\t --container \t\t The name of the container for which data will be collected from all pods in a specified namespace, in the case where "--containers" is not defined. Default: all containers from all modules in the specified namespace.'
@@ -42,19 +45,27 @@ function print_help {
   printf '\t\t\t Note: the metrics-server will be installed if it has not been installed previously.'
   printf '\t -h, --help \t\t Print help message and exit\n' 
 }
- 
+# execute single commands and exit
+if [ "$1" == -v ] || [ "$1" == --version ] ; then
+    printf "%s\n" $VERSION
+    exit
+fi
+
+
+# commands for collecting data
+source tools_utils.sh
 while [[ $# -gt 0 ]]; do
 	case $1 in
-		--techdata|TECHDATA) 
-            TDATA=1
-			shift
-			;;
-        --backup|BACKUP) 
+   --techdata|TECHDATA)
+        TDATA=1
+			  shift
+   ;;
+    --backup|BACKUP)
 			BKP=1
             BKP_PARAMS+=" --backup"
 			shift
 			;;
-        --restore|RESTORE)
+    --restore|RESTORE)
                         if [ -z "$2" ] || [[ "$2" == "-"* ]]; then
                                 print_error "Error: --restore|RESTORE requires an additional parameter which is the file from which to restore from."
                                 exit 1
@@ -64,22 +75,22 @@ while [[ $# -gt 0 ]]; do
                         shift
                         shift
                         ;;
-        --crd_only|CRD_ONLY) 
+    --crd_only|CRD_ONLY)
             BKP_PARAMS+=" --crd_only"
 			TDATA_PARAMS+=" --crd_only"
 			shift
 			;;
-        --cm_only|CM_ONLY) 
+    --cm_only|CM_ONLY)
             BKP_PARAMS+=" --cm_only"
 			TDATA_PARAMS+=" --cm_only"
 			shift
 			;;
-        --raw_output) 
+    --raw_output)
             BKP_PARAMS+=" --raw_output"
 			TDATA_PARAMS+=" --raw_output"
 			shift
 			;;
-        --all_config_maps) 
+    --all_config_maps)
             BKP_PARAMS+=" --all_config_maps"
 			TDATA_PARAMS+=" --all_config_maps"
 			shift
@@ -133,8 +144,16 @@ while [[ $# -gt 0 ]]; do
 			shift
 			shift
 			;;
-		-cd | --config-dump)
+	  -cd | --config-dump)
 			COLLECT_DATA_PARAMS+=" -cd"
+			shift
+			;;
+	  -pm | --pmap)
+			COLLECT_DATA_PARAMS+=" -pm"
+			shift
+			;;
+	  -lc | --latency-control)
+			COLLECT_DATA_PARAMS+=" -lc"
 			shift
 			;;
 		-se | --security-events)

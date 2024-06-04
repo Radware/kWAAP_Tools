@@ -11,7 +11,11 @@ COLLECT_DESCRIBES=true # - currently always collected
 DESCRIBES_FILE_PREFIX="logs"
 RESOURCES_FILE_PREFIX="resources"
 COLLECT_CONFIG_DUMP=false
+COLLECT_PMAP=false
+COLLECT_LATENCY_CONTROL=false
 CONFIG_DUMP_FILE_PREFIX="config_dump"
+LATENCY_CONTROL_FILE_PREFIX="latency_control"
+PMAP_DIR="memory_map"
 COLLECT_SEC_EVENTS=false
 SEC_EVENTS_FILENAME="security.log"
 COLLECT_ACCEESS_LOGS=false
@@ -39,6 +43,8 @@ print_help() {
   printf '\t -c, --containers \t\t The list of pods and containers per namespaces for which data will be collected.\n\tFormat:"ns1:pod1*cont1,pod2;ns2:;ns3:*cont2". Default: The list of ALL pods and containers defined by "--namespace" and "--container" args\n' 
   printf '\t -af, --args-file \t\t The filename of JSON file that is used in place of the "--containers" , and other data collection arguments.\n' 
   printf '\t -cd, --config-dump \t\t The boolean determines whether config-dump should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
+  printf '\t -lc, --latency-control \t\t The boolean determines whether latency-control should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
+  printf '\t -pm, --pmap \t\t The boolean determines whether pmap should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
   printf '\t -se, --security-events \t\t The boolean determines whether security-events should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
   printf '\t -al, --access-logs \t\t The boolean determines whether access-logs should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n'
   printf '\t -rd, --requst-data \t\t The boolean determines whether requst-data should be collected from the pods:containers defined by the "--namespace" and one of "--container" or "--containers" arguments. Default: false\n' 
@@ -96,6 +102,16 @@ while [[ "$1" =~ ^- ]]; do
 			;;
 		-cd | --config-dump)
 			COLLECT_CONFIG_DUMP=true
+			IS_CMD_LINE_ARGS_USED=true
+			shift
+			;;
+	  -pm | --pmap)
+			COLLECT_PMAP=true
+			IS_CMD_LINE_ARGS_USED=true
+			shift
+			;;
+	  -lc | --latency-control)
+			COLLECT_LATENCY_CONTROL=true
 			IS_CMD_LINE_ARGS_USED=true
 			shift
 			;;
@@ -164,10 +180,12 @@ config_dump() {
 	handle_cmd_and_output "${CONFIG_DUMP_FILE_PREFIX}_$pod" "$cmd"
 }
 
+
+
 get_enforcer_log_stuff(){
 	local ns=$1 # arg1 - Namespace
 	local pod=$2 # arg2 - Pod name
-	local filename=$3 # arg3 - log file-name, that placed in "log/" dir on enfotcer container
+	local filename=$3 # arg3 - log file-name, that placed in "log/" dir on enforcer container
 	local file_prefix="${filename%.*}"
 	
 	print_msg "\nGetting '$filename' from namespace:'$ns', pod:'$pod', container:'$ENFORCER_CONT_NAME'. -"
@@ -177,6 +195,25 @@ get_enforcer_log_stuff(){
 		cmd="kubectl exec $pod -n $ns -c $ENFORCER_CONT_NAME -- cat logs/${filename}"
 	fi
 	handle_cmd_and_output "${file_prefix}_$pod" "$cmd"
+}
+
+get_enforcer_logs_from_directory(){
+	local ns=$1 # arg1 - Namespace
+	local pod=$2 # arg2 - Pod name
+	local dir_path=$3 # arg2 - directory path
+  local log_files #files in directory
+  log_files="$(kubectl exec -n "$ns" "$pod" -c $ENFORCER_CONT_NAME -- ls logs/"$dir_path")"
+
+  for filename in $log_files
+  do
+	print_msg "\nGetting '$filename' from namespace:'$ns', pod:'$pod', container:'$ENFORCER_CONT_NAME'. -"
+	if [ -d "$OUTPUT_REDIR_NAME" ]; then
+		cmd="kubectl cp $ns/$pod:logs/$dir_path/${filename} ${OUTPUT_REDIR_NAME}/"$dir_path/${pod}_${filename}" -c $ENFORCER_CONT_NAME"
+	else
+		cmd="kubectl exec $pod -n $ns -c $ENFORCER_CONT_NAME -- cat logs/$dir_path/${filename}"
+	fi
+	handle_cmd_and_output "${filename}_$pod" "$cmd"
+	done
 }
 
 security_events() {
@@ -189,6 +226,19 @@ access_logs() {
 
 request_data() {
 	get_enforcer_log_stuff "$1" "$2" "$REQUEST_DATA_FILENAME"
+}
+
+get_pmap() {
+   get_enforcer_logs_from_directory "$1" "$2" "$PMAP_DIR";
+}
+
+get_latency_control() {
+  local ns=$1 # arg1 - Namespace
+  local pod=$2 # arg2 - Pod name
+
+	print_msg "\nGetting LATENCY-CONTROL from namespace:'$ns', pod:'$pod', container:'$ENFORCER_CONT_NAME'. -"
+  cmd="kubectl exec $pod -n $ns -c $ENFORCER_CONT_NAME -- wget -nv -O - $LOCALHOST:$ENFORCER_CONTAINER_PORT/stats/prometheus | grep latency"
+	handle_cmd_and_output "${LATENCY_CONTROL_FILE_PREFIX}_$pod" "$cmd"
 }
 
 logs() {
@@ -228,6 +278,12 @@ collect_containers_techdata() {
 		if [ "$container" == "$ENFORCER_CONT_NAME" ]; then
 			if [ "$COLLECT_CONFIG_DUMP" = true ]; then
 				config_dump "$ns" "$pod"
+			fi
+			if [ "$COLLECT_PMAP" = true ]; then
+				get_pmap "$ns" "$pod"
+			fi
+			if [ "$COLLECT_LATENCY_CONTROL" = true ]; then
+				get_latency_control "$ns" "$pod"
 			fi
 			if [ "$COLLECT_SEC_EVENTS" = true ]; then
 				security_events "$ns" "$pod"

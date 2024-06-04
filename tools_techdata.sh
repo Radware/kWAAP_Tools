@@ -230,6 +230,21 @@ collect_crd() {
     done
 }
 
+collect_crs() {
+  local ns=$NAMESPACE
+  local crs
+	print_msg "\nCollecting CRS from namespace:'$ns'. -"
+	 crs="$(kubectl get crs -n "$ns" --no-headers -o custom-columns=:metadata.name)"
+
+	for cr in $crs
+	do
+	echo -e "\nCollecting $cr"
+	cmd="kubectl get  cr -n $ns $cr -o yaml "
+  handle_cmd_and_output "crs_ns_$ns.yaml" "$cmd"
+	done
+}
+
+
 ## actual run
 set_new_output_dir_and_stdout_stderr_files
 
@@ -240,6 +255,7 @@ print_msg "\n$CTR) collecting custom resources:\n\n"
 ((CTR=CTR+1))
 
 collect_crd
+collect_crs
 print_delimiter
 print_msg "\n$CTR) collecting config maps:\n\n"
 ((CTR=CTR+1))
