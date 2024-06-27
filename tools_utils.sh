@@ -1,9 +1,12 @@
 #!/bin/bash
 
-#Common global variables - used by most scripts: 
+#Common global variables - used by most scripts:
 DEFAULT_NAMESPACE="kwaf"
+DEFAULT_HELM_RELEASE_NAME="waas"
 OUTPUT_REDIR_NAME=""
 
+NAMESPACE=$DEFAULT_NAMESPACE
+HELM_RELEASE_NAME=$DEFAULT_HELM_RELEASE_NAME
 # Arguments key-names in JSON arguments file-name:
 JSON_FILE_NAMESPACE_ARG="namespace"             # instead of "--namespace"
 JSON_FILE_CONTAINER_ARG="container"             # instead of "--container"
@@ -35,20 +38,20 @@ METRICS_SERVER_CONFIG_REMOTE="https://github.com/kubernetes-sigs/metrics-server/
 METRICS_SERVER_CONFIG_LOCAL="components.yaml"
 METRICS_SERVER_CONFIG_USED=$METRICS_SERVER_CONFIG_REMOTE
 
-# extract_containers_arg_from_json_args_file - extracts "--containers" arg value from JSON file 
+# extract_containers_arg_from_json_args_file - extracts "--containers" arg value from JSON file
 # @params: arg1: json file-name
 #          arg2: "--containers" key-name
-# @return: CONTAINERS_ARG_LIST in format as of "--containers" arg 
-#		 For example, "ns1:pod1,pod2,pod3" or "ns1:pod1#con1,pod2#con1,pod3#con1"
+# @return: CONTAINERS_ARG_LIST in format as of "--containers" arg
+#         For example, "ns1:pod1,pod2,pod3" or "ns1:pod1#con1,pod2#con1,pod3#con1"
 extract_containers_arg_from_json_args_file() {
-    local json_file=$1
-    local containers_key=$2
+	local json_file=$1
+	local containers_key=$2
 
-    namespace_list=$(jq -r --arg key_var "$containers_key" '.[$key_var] | keys[]' "$json_file")
-    output=""
+	namespace_list=$(jq -r --arg key_var "$containers_key" '.[$key_var] | keys[]' "$json_file")
+	output=""
 
-    for namespace in $namespace_list; do
-        pod_container_pairs=$(jq -r --arg namespace "$namespace" --arg separator_var "$POD_CONTAINER_SEPARATOR" '
+	for namespace in $namespace_list; do
+		pod_container_pairs=$(jq -r --arg namespace "$namespace" --arg separator_var "$POD_CONTAINER_SEPARATOR" '
             .app_containers[$namespace][] |
             (
                 if (.pods | length > 0) then
@@ -66,36 +69,36 @@ extract_containers_arg_from_json_args_file() {
             )
             ' "$json_file" | paste -sd "$PODS_SEPARATOR")
 
-        output="${output}${namespace}:${pod_container_pairs%,};"
-    done
+		output="${output}${namespace}:${pod_container_pairs%,};"
+	done
 
-    final_output="${output//[$'\t\r\n']}"  # Remove newlines, tabs, and carriage returns
-	
+	final_output="${output//[$'\t\r\n']/}" # Remove newlines, tabs, and carriage returns
+
 	# Remove double $POD_CONTAINER_SEPARATOR:
 	double="${POD_CONTAINER_SEPARATOR}${POD_CONTAINER_SEPARATOR}"
 	single="${POD_CONTAINER_SEPARATOR}"
 	CONTAINERS_ARGUMENT_LIST="${final_output//$double/$single}"
 }
 
-# extract_collected_data_flag_arg_from_json_args_file - extracts one of flags value from "collected_data" dict in JSON file 
+# extract_collected_data_flag_arg_from_json_args_file - extracts one of flags value from "collected_data" dict in JSON file
 # @params: arg1: json file-name
 #          arg2: key-name
 # @return: JSON_FILE_ARG_RET_VALUE - true/false value
 extract_collected_data_flag_arg_from_json_args_file() {
 	local json_file=$1
 	local flag_key=$2
-	
+
 	JSON_FILE_ARG_RET_VALUE=$(jq -r --arg key "$flag_key" '.collected_data[$key]' "$json_file")
 }
 
-# extract_simple_arg_from_json_args_file - extracts one of args value from JSON file 
+# extract_simple_arg_from_json_args_file - extracts one of args value from JSON file
 # @params: arg1: json file-name
 #          arg2: key-name
 # @return: JSON_FILE_ARG_RET_VALUE - true/false value
 extract_simple_arg_from_json_args_file() {
 	local json_file=$1
 	local flag_key=$2
-	
+
 	JSON_FILE_ARG_RET_VALUE=$(jq -r --arg key "$flag_key" '.[$key]' "$json_file")
 	if [ "$JSON_FILE_ARG_RET_VALUE" = "null" ]; then
 		JSON_FILE_ARG_RET_VALUE=""
@@ -103,27 +106,27 @@ extract_simple_arg_from_json_args_file() {
 }
 
 # json_file_to_cmd_args - parses the contents of a JSON file with techdata script arguments and
-#	updates all relevant global variables that retain the values of the cmd arguments
-#   NOTE: if any parameter is defined in both the json-params file and the cmd string arguments, 
+#    updates all relevant global variables that retain the values of the cmd arguments
+#   NOTE: if any parameter is defined in both the json-params file and the cmd string arguments,
 #         the cmd string argument will be preferred.
 # @params: arg1: json file-name
 json_file_to_cmd_args() {
 	local json_file=$1
-	
+
 	# Check if jq is installed
 	if ! command -v jq &>/dev/null; then
 		print_error "jq is not installed. Please install jq."
 		exit 1
 	fi
-	
+
 	extract_simple_arg_from_json_args_file "$json_file" "$JSON_FILE_NAMESPACE_ARG"
 	NAMESPACE="$JSON_FILE_ARG_RET_VALUE"
 	extract_simple_arg_from_json_args_file "$json_file" "$JSON_FILE_CONTAINER_ARG"
 
 	CONTAINER_NAME="$JSON_FILE_ARG_RET_VALUE"
-	
+
 	extract_containers_arg_from_json_args_file "$json_file" "$JSON_FILE_CONTAINERS_ARG"
-	
+
 	extract_collected_data_flag_arg_from_json_args_file "$json_file" "$JSON_FILE_CONFIG_DUMP_FLAG_ARG"
 	COLLECT_CONFIG_DUMP="$JSON_FILE_ARG_RET_VALUE"
 	extract_collected_data_flag_arg_from_json_args_file "$json_file" "$JSON_FILE_SEC_EVENTS_FLAG_ARG"
@@ -142,8 +145,8 @@ json_file_to_cmd_args() {
 #     & creates two files:
 #        1. <dirname>_stderr.txt - to copy the contents of STDERR.
 #        2. <dirname>_stdout.txt - to redirect the contents of STDOUT.
-set_new_output_dir_and_stdout_stderr_files(){
-	if [[ -z "$OUTPUT_REDIR_NAME" ]]; then 
+set_new_output_dir_and_stdout_stderr_files() {
+	if [[ -z "$OUTPUT_REDIR_NAME" ]]; then
 		return
 	fi
 	if [[ ! -d "$OUTPUT_REDIR_NAME" ]]; then
@@ -154,10 +157,10 @@ set_new_output_dir_and_stdout_stderr_files(){
 		print_msg "\nSTDOUT will be coppied to the file '${STDOUT_FILE}'\n"
 		print_msg "\nSTDERR will be coppied to the file '${STDERR_FILE}'\n"
 	fi
-	
+
 	STDOUT_FILE="${OUTPUT_REDIR_NAME}/${OUTPUT_REDIR_NAME}_stdout.txt"
 	STDERR_FILE="${OUTPUT_REDIR_NAME}/${OUTPUT_REDIR_NAME}_stderr.txt"
-	
+
 }
 
 # print_error - prints an error message to STDERR and to $STDERR_FILE if one is defined.
@@ -172,8 +175,8 @@ print_error() {
 
 # print_msg - prints a message to STDOUT and to $STDOUT_FILE if one is defined.
 print_msg() {
-    local msg=("$@")
-	
+	local msg=("$@")
+
 	# # redirect stdout to $stdout_file, if defined
 	# echo -e "${msg[*]}" ${stdout_file:+>> "$stdout_file"}
 	if [[ -z "$STDOUT_FILE" ]]; then
@@ -187,12 +190,12 @@ print_msg() {
 # @params: arg1: cmd in string format
 # @return: EXIT_CODE - cmd exit_code
 #          STDOUT_OUTPUT - stdout contents
-handle_cmd(){ 
+handle_cmd() {
 	local lineno
 	local caller_func
-    local caller_script
-	read lineno caller_func caller_script <<< $(caller 0)
-    local cmd=("$@")
+	local caller_script
+	read lineno caller_func caller_script <<<$(caller 0)
+	local cmd=("$@")
 	print_msg "Executing-cmd [$caller_script[$lineno]:$caller_func()]: '${cmd[*]}'..."
 	if [[ -z "$STDERR_FILE" ]]; then
 		# Collect from stdout; and print stderr contents to the stderr
@@ -211,29 +214,29 @@ handle_cmd(){
 # @params: arg1: filename for stdout contents redirection
 #          arg2: cmd in string format
 # @return: EXIT_CODE - cmd exit_code
-handle_cmd_and_output(){ 
+handle_cmd_and_output() {
 	local lineno
 	local caller_func
-    local caller_script
-	read lineno caller_func caller_script <<< $(caller 0)
+	local caller_script
+	read lineno caller_func caller_script <<<$(caller 0)
 	local stdout_file=$1
 	shift
-    local cmd=("$@")
-	
+	local cmd=("$@")
+
 	print_msg "Executing-cmd [$caller_script[$lineno]:$caller_func()]: '${cmd[*]}'..."
-	
-	if [[ -z "$OUTPUT_REDIR_NAME" ]]; then 
+
+	if [[ -z "$OUTPUT_REDIR_NAME" ]]; then
 		stdout_file=""
 	else
-		if [[ ! -z "$stdout_file" ]]; then 
-			stdout_file="${OUTPUT_REDIR_NAME}/${stdout_file}"	
+		if [[ ! -z "$stdout_file" ]]; then
+			stdout_file="${OUTPUT_REDIR_NAME}/${stdout_file}"
 			print_msg "Output redirected to file '$stdout_file'"
 		elif [[ ! -z "$STDOUT_FILE" ]]; then
 			stdout_file="$STDOUT_FILE"
 			echo "Output redirected to file '$STDOUT_FILE'"
 		fi
 	fi
-	
+
 	if [[ -z "$OUTPUT_REDIR_NAME" ]]; then
 		# redirect stdout if $stdout_file is defined
 		eval "${cmd[*]}"
@@ -242,7 +245,7 @@ handle_cmd_and_output(){
 		# redirect stdout if $stdout_file is defined; and print stderr contents to the stderr and redirect to the file simultaneously:
 		# eval "${cmd[*]}" ${stdout_file:+>> "$stdout_file"} 2> >(tee -a "$STDERR_FILE" >&2)
 		eval "${cmd[*]}" ${stdout_file:+>> "$stdout_file"} 2> >(tee -a "$STDOUT_FILE" "$STDERR_FILE" >&2)
-		eval "echo -e '---\n'" ${stdout_file:+>> "$stdout_file"} 
+		eval "echo -e '---\n'" ${stdout_file:+>> "$stdout_file"}
 	fi
 	EXIT_CODE=$?
 	if [[ $EXIT_CODE -ne 0 ]]; then
@@ -252,13 +255,13 @@ handle_cmd_and_output(){
 
 # get_all_pods_per_ns_and_container - collects all pods in the given namespace; or all [pod:container] pairs for a particular container, if one is defined.
 # @params: arg1: namespace
-#		   arg2: container name or empty
-# @return: CONTAINERS_ARG_LIST in format as of "--containers" arg 
-#		 For example, "ns1:pod1,pod2,pod3" or "ns1:pod1#con1,pod2#con1,pod3#con1"
+#           arg2: container name or empty
+# @return: CONTAINERS_ARG_LIST in format as of "--containers" arg
+#         For example, "ns1:pod1,pod2,pod3" or "ns1:pod1#con1,pod2#con1,pod3#con1"
 get_all_pods_per_ns_and_container() {
-	local ns=$1 # arg1 - Namespace
+	local ns=$1        # arg1 - Namespace
 	local container=$2 # arg2 - Conatiner name
-		
+
 	if [[ -z "$container" ]]; then
 		print_msg "\nSearching for all the pods in namespace '$ns'"
 		cmd="kubectl get pods -n $ns -o jsonpath='{.items[*].metadata.name}'"
@@ -268,13 +271,13 @@ get_all_pods_per_ns_and_container() {
 		cmd="kubectl get pods -n $ns -o=jsonpath='{range .items[*]}{.metadata.name}{\"\\t\"}{range .spec.containers[*]}{.name}{\"\\t\"}{end}{\"\\n\"}{end}' | grep $container | awk '{print \$1}'"
 		err_msg="Pods with the '$container' container in the '$ns' namespace were not found"
 	fi
-	
+
 	handle_cmd $cmd
 	if [[ $EXIT_CODE -eq 0 ]]; then
-		if [[ -z "$STDOUT_OUTPUT" ]]; then 
+		if [[ -z "$STDOUT_OUTPUT" ]]; then
 			print_error "Error: $err_msg"
 		else
-			readarray -t pods_array <<< "$(echo "$STDOUT_OUTPUT" | awk -v RS="[ \n]" '{print}')"
+			readarray -t pods_array <<<"$(echo "$STDOUT_OUTPUT" | awk -v RS="[ \n]" '{print}')"
 			pods_and_containers_array=("${pods_array[@]/%/${POD_CONTAINER_SEPARATOR}${container}}")
 			CONTAINERS_ARG_LIST="${ns}${NAMESPACE_PODS_SEPARATOR}"
 			pods_list=$(printf "%s," "${pods_and_containers_array[@]}")
@@ -286,58 +289,58 @@ get_all_pods_per_ns_and_container() {
 
 # expand_empty_namespaces_in_containers_arg - expands empty namespaces -  ""<ns>:;" , defiled in "--containers" arg
 # @params: arg1: string-value of "--containers" arg
-# @return: CONTAINERS_ARG_LIST_WITH_EXPANDED_NANESPACES - "--containers" arg with expanded empty namespaces. 
-# 		For example, value  "...;ns1:;..." of "--containers" arg will be converted to "...;ns1:pod1,pod2,pod3;..."
+# @return: CONTAINERS_ARG_LIST_WITH_EXPANDED_NANESPACES - "--containers" arg with expanded empty namespaces.
+#         For example, value  "...;ns1:;..." of "--containers" arg will be converted to "...;ns1:pod1,pod2,pod3;..."
 expand_empty_namespaces_in_containers_arg() {
-	local received_containers_arg_list=("$@")   # arg1 - List of namespaces-pods-containers name ("--containers" arg value)
+	local received_containers_arg_list=("$@") # arg1 - List of namespaces-pods-containers name ("--containers" arg value)
 
-	IFS="$NAMESPACES_SEPARATOR" read -ra received_pods_arg_array <<< "$received_containers_arg_list"
+	IFS="$NAMESPACES_SEPARATOR" read -ra received_pods_arg_array <<<"$received_containers_arg_list"
 
 	CONTAINERS_ARG_LIST_WITH_EXPANDED_NANESPACES=""
 	for ns_list in ${received_pods_arg_array[@]}; do
-		IFS="$NAMESPACE_PODS_SEPARATOR" read -r ns pod_container_list  <<< "$ns_list"
-		if [[ -z "$ns" ]]; then 
+		IFS="$NAMESPACE_PODS_SEPARATOR" read -r ns pod_container_list <<<"$ns_list"
+		if [[ -z "$ns" ]]; then
 			ns=$NAMESPACE
 		fi
-		if [[ ! -z "$pod_container_list" ]]; then 
+		if [[ ! -z "$pod_container_list" ]]; then
 			CONTAINERS_ARG_LIST_WITH_EXPANDED_NANESPACES+=$"${ns}${NAMESPACE_PODS_SEPARATOR}${pod_container_list}${NAMESPACES_SEPARATOR}"
 		else
 			get_all_pods_per_ns_and_container "$ns" ""
-			if [[ ! -z "$CONTAINERS_ARG_LIST" ]]; then 
+			if [[ ! -z "$CONTAINERS_ARG_LIST" ]]; then
 				CONTAINERS_ARG_LIST_WITH_EXPANDED_NANESPACES+="${CONTAINERS_ARG_LIST[@]}${NAMESPACES_SEPARATOR}"
-			fi	
+			fi
 		fi
-	done	
+	done
 }
 
 # collect_all_containers_define_by_cmd_args - parses "--containers" arg, considering values of "--namespace" and "--container" args.
-#	The format of the "--containers" argument is as follows:
-#	"[<namespace>]:[[<pod-name1>]#[<container-name1>],[<pod-name1>]#[<container-name2>]...];..."
-#	Special cases:
-#	1. The default namespace or the value of the "--namesapce" argument (if defined) will be used for a module with an empty namespace.
-#		For example, '--namespace radware --containers "...;:[<pods-contaters list>];..."' is the same as' --containers "...;radware:[<pods-contaters list>];..."'
-#	2. If the container name is omitted, all pod containers will be processed.
-#		For example, '--containers "radware:pod1,pod2#cont2"' is the same as' --containers "radware:pod1#cont1,pod1#cont2,pod2#cont2"', where pod1 has 2 contaners: cont1 and cont2.
-#	3. If the pod-name is omitted, all pods containing the given container in the given namespace will be processed.
-#		For example, '--containers "radware:pod1#cont1,#cont2"' is the same as' --containers "radware:pod1#cont1,pod2#cont2,pod3#cont2"', where pod2 and pod3 have contaner cont2
-#	4. If the "--containers" arg is omitted, "--namespase" arg( of default namespace, not if defined) and "--container" arg  will be processed.
-#		Two examples: 
-#		 (1) '--namespace radware --container cont1' is the same as ' --containers "radware:#cont1"'
-#		 (2) '--namespace radware' is the same as ' --containers "radware:"'
+#    The format of the "--containers" argument is as follows:
+#    "[<namespace>]:[[<pod-name1>]#[<container-name1>],[<pod-name1>]#[<container-name2>]...];..."
+#    Special cases:
+#    1. The default namespace or the value of the "--namesapce" argument (if defined) will be used for a module with an empty namespace.
+#        For example, '--namespace radware --containers "...;:[<pods-contaters list>];..."' is the same as' --containers "...;radware:[<pods-contaters list>];..."'
+#    2. If the container name is omitted, all pod containers will be processed.
+#        For example, '--containers "radware:pod1,pod2#cont2"' is the same as' --containers "radware:pod1#cont1,pod1#cont2,pod2#cont2"', where pod1 has 2 contaners: cont1 and cont2.
+#    3. If the pod-name is omitted, all pods containing the given container in the given namespace will be processed.
+#        For example, '--containers "radware:pod1#cont1,#cont2"' is the same as' --containers "radware:pod1#cont1,pod2#cont2,pod3#cont2"', where pod2 and pod3 have contaner cont2
+#    4. If the "--containers" arg is omitted, "--namespase" arg( of default namespace, not if defined) and "--container" arg  will be processed.
+#        Two examples:
+#         (1) '--namespace radware --container cont1' is the same as ' --containers "radware:#cont1"'
+#         (2) '--namespace radware' is the same as ' --containers "radware:"'
 # @params: arg1: namespace
-#		   arg2: container name or empty
-#		   arg3: string-value of "--containers" arg
+#           arg2: container name or empty
+#           arg3: string-value of "--containers" arg
 # @return: CONTAINERS_ARGUMENT_ARRAY - the parsed "--containers" arg as an array in the following format:
-#	("<namespace>&<pod-name1>&<container-name1>" "<namespace>&<pod-name1>&<container-name2>" ...) 
-#	- according to all dependencies between namespaces, pods and containers defined in the "--containers" arg.
+#    ("<namespace>&<pod-name1>&<container-name1>" "<namespace>&<pod-name1>&<container-name2>" ...)
+#    - according to all dependencies between namespaces, pods and containers defined in the "--containers" arg.
 collect_all_containers_define_by_cmd_args() {
-	local dflt_ns=$1 # arg1 - Namespace ("--namespace" arg value)
+	local dflt_ns=$1        # arg1 - Namespace ("--namespace" arg value)
 	local dflt_container=$2 # arg2 - Conaitner name ("--container" arg value)
 	shift
 	shift
-	local received_containers_arg_list=("$@")  # arg3 - List of namespaces-pods-containers name ("--containers" arg value)
-	
-	if [[ -z "$received_containers_arg_list" ]]; then 	
+	local received_containers_arg_list=("$@") # arg3 - List of namespaces-pods-containers name ("--containers" arg value)
+
+	if [[ -z "$received_containers_arg_list" ]]; then
 		print_msg "\n'--containers' arg is not defined.\nCreating '--containers' arg from '--namespace' and '--container' args ..."
 		get_all_pods_per_ns_and_container "$dflt_ns" "$dflt_container"
 		received_containers_arg_list="${CONTAINERS_ARG_LIST[@]}"
@@ -346,19 +349,19 @@ collect_all_containers_define_by_cmd_args() {
 		expand_empty_namespaces_in_containers_arg ${received_containers_arg_list[@]}
 		received_containers_arg_list="${CONTAINERS_ARG_LIST_WITH_EXPANDED_NANESPACES[@]}"
 	fi
-	
+
 	print_msg "\nProcessing the '--containers' arg ..."
-	IFS="$NAMESPACES_SEPARATOR" read -ra received_pods_arg_array <<< "$received_containers_arg_list"
-	
+	IFS="$NAMESPACES_SEPARATOR" read -ra received_pods_arg_array <<<"$received_containers_arg_list"
+
 	local parsed_containers_arg_array=()
-	for ns_list in ${received_pods_arg_array[@]}; do	
-		IFS="$NAMESPACE_PODS_SEPARATOR" read -r ns pod_container_list  <<< "$ns_list"
-		IFS="$PODS_SEPARATOR" read -ra pod_container_array <<< "$pod_container_list"
-		if [[ -z "$ns" ]]; then 
+	for ns_list in ${received_pods_arg_array[@]}; do
+		IFS="$NAMESPACE_PODS_SEPARATOR" read -r ns pod_container_list <<<"$ns_list"
+		IFS="$PODS_SEPARATOR" read -ra pod_container_array <<<"$pod_container_list"
+		if [[ -z "$ns" ]]; then
 			ns=$dflt_ns
 		fi
 		for pod_cont in "${pod_container_array[@]}"; do
-			IFS="$POD_CONTAINER_SEPARATOR" read -r pod container <<< "$pod_cont"
+			IFS="$POD_CONTAINER_SEPARATOR" read -r pod container <<<"$pod_cont"
 			if [[ -z "$pod" ]]; then
 				print_msg "\nCollecting all pods from namespace '$ns' having container '$container'..."
 				cmd="kubectl get pods -n $ns -o=jsonpath='{range .items[*]}{.metadata.name}{\"\\t\"}{range .spec.containers[*]}{.name}{\"\\t\"}{end}{\"\\n\"}{end}' | grep $container | awk '{print \$1}'"
@@ -369,7 +372,7 @@ collect_all_containers_define_by_cmd_args() {
 				if [ -z "$STDOUT_OUTPUT" ]; then
 					print_error "Error: there is no pods containing container '$container' in namespace '$ns'"
 				else
-					readarray -t PODS <<< "$(echo "$STDOUT_OUTPUT" | awk -v RS="[ \n]" '{print}')"
+					readarray -t PODS <<<"$(echo "$STDOUT_OUTPUT" | awk -v RS="[ \n]" '{print}')"
 					PODS_ARRAY=("${PODS[@]/#/${ns}${RESULT_SEPARATOR}}")
 					PODS_ARRAY=("${PODS_ARRAY[@]/%/${RESULT_SEPARATOR}${container}}")
 					parsed_containers_arg_array+=("${PODS_ARRAY[@]}")
@@ -384,8 +387,8 @@ collect_all_containers_define_by_cmd_args() {
 				if [ -z "$STDOUT_OUTPUT" ]; then
 					print_error "Error: there is no containers on the pod '$pod'  in namespace '$ns'"
 				else
-					readarray -t CONTAINERS <<< "$(echo "$STDOUT_OUTPUT" | awk -v RS="[ \n]" '{print}')"
-					CONTAINERS_ARRAY=("${CONTAINERS[@]/#/${ns}${RESULT_SEPARATOR}${pod}${RESULT_SEPARATOR}}")				
+					readarray -t CONTAINERS <<<"$(echo "$STDOUT_OUTPUT" | awk -v RS="[ \n]" '{print}')"
+					CONTAINERS_ARRAY=("${CONTAINERS[@]/#/${ns}${RESULT_SEPARATOR}${pod}${RESULT_SEPARATOR}}")
 					parsed_containers_arg_array+=("${CONTAINERS_ARRAY[@]}")
 				fi
 			else
@@ -398,14 +401,14 @@ collect_all_containers_define_by_cmd_args() {
 				if [ -z "$STDOUT_OUTPUT" ]; then
 					print_error "Error: pod '$pod' from namespace '$ns' does not contain container '$container'"
 				else
-					parsed_containers_arg_array+=("${ns}${RESULT_SEPARATOR}${pod}${RESULT_SEPARATOR}${container}")	
+					parsed_containers_arg_array+=("${ns}${RESULT_SEPARATOR}${pod}${RESULT_SEPARATOR}${container}")
 				fi
 			fi
 		done
 	done
-	
+
 	CONTAINERS_ARGUMENT_ARRAY=("${parsed_containers_arg_array[@]}")
-	if [[ -z "$CONTAINERS_ARGUMENT_ARRAY" ]]; then 
+	if [[ -z "$CONTAINERS_ARGUMENT_ARRAY" ]]; then
 		print_error "Error: No pods were found for the given cmd arguments."
 	fi
 }
@@ -456,7 +459,7 @@ metrics_server_install_remote() {
 	if [[ $? -eq 0 ]]; then
 		return 0
 	fi
-	
+
 	cmd="kubectl patch -n kube-system deployment metrics-server --type=json -p '[{\"op\":\"add\",\"path\":\"/spec/template/spec/containers/0/args/-\",\"value\":\"--kubelet-insecure-tls\"}]'"
 	handle_cmd_and_output "" "$cmd"
 	if [[ $EXIT_CODE -ne 0 ]]; then
@@ -479,7 +482,7 @@ metrics_server_install_local() {
 	if [[ $? -eq 0 ]]; then
 		return 0
 	fi
-	
+
 	cmd="kubectl patch -n kube-system deployment metrics-server --type=json -p '[{\"op\":\"add\",\"path\":\"/spec/template/spec/containers/0/args/-\",\"value\":\"--kubelet-insecure-tls\"}]'"
 	handle_cmd_and_output "" "$cmd"
 	if [[ $EXIT_CODE -ne 0 ]]; then
@@ -491,12 +494,12 @@ metrics_server_install_local() {
 # @return: 0/1 -  false/true
 metrics_server_wait_until_ready() {
 	metrics_server_is_installed_and_running
-	while  [[ $? -eq 0 ]]; do
+	while [[ $? -eq 0 ]]; do
 		if ((iteration >= max_iterations)); then
 			print_error "Metrics-Server installation timed out after $((max_iterations * 5)) seconds."
 			return 0
 		fi
-    
+
 		((iteration++))
 		print_msg "Waiting for Metrics-Server to be ready (Attempt $iteration/$max_iterations)..."
 		sleep 5
@@ -529,7 +532,7 @@ metrics_server_install() {
 			return 0
 		fi
 	fi
-	
+
 	print_msg "Waiting for the Metrics-Server to be ready..."
 
 	metrics_server_wait_until_ready
@@ -554,4 +557,25 @@ metrics_server_install_and_validate() {
 	print_msg "Metrics Server is not installed."
 	metrics_server_install
 	return $?
+}
+
+# validate release version
+validate_release() {
+  local cluster_full_version
+  cluster_full_version="$(helm ls -n "$NAMESPACE" --selector "name==$HELM_RELEASE_NAME" --no-headers | awk '{print $NF}')"
+  major="$(echo "$cluster_full_version" | cut -d'.' -f1)"
+  minor="$(echo "$cluster_full_version" | cut -d'.' -f2)"
+  local cluster_version="$major.$minor"
+
+  if [ -z "$cluster_full_version" ]; then
+      print_error "\nCould not verify cluster version for namespace '$NAMESPACE' and release name '${HELM_RELEASE_NAME}'."
+      print_msg "NOTE: Either namespace or helm release name cannot be resolved. Please check that --namespace and --release parameters are correct. Script will collect data anyway but may contain inconsistencies due to version incompatibility\n"
+      return
+  fi
+
+  if [ "$cluster_version" != "$TOOL_VERSION" ]; then
+  	print_error "Error: Your KWAAP version: ${cluster_version} is not supported by techdata tool version: ${TOOL_VERSION}"
+  	print_error "You can download version ${cluster_version} from here https://github.com/Radware/kWAAP_Tools/releases/${cluster_full_version}"
+    exit 1
+  fi
 }
