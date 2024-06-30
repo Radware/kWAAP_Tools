@@ -106,7 +106,7 @@ function patch_and_echo {
 
     #Generate patch string based on object fields
     TMP_PATCH_STRING=""
-    for ((i=0; i<${#PATCH_FIELD[@]}; i++)); do
+    for ((i = 0; i < ${#PATCH_FIELD[@]}; i++)); do
         if [[ ! -z $($OBJ_STR --output jsonpath={${PATCH_FIELD[$i]}}) ]]; then
             TMP_PATCH_STRING+="${PATCH_STRING[$i]}"
         fi
