@@ -12,7 +12,7 @@ TDATA_PARAMS=""
 COLLECT_DATA_PARAMS=""
 BKP_PARAMS=""
 # do not add patch to the version !!! every update should only include major.minor
-TOOL_VERSION="1.17"
+TOOL_VERSION="1.18"
 ARCHIVE=false
 
 function print_help {
